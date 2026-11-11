@@ -1,0 +1,73 @@
+/**
+ * DESIGN TOKENS — Beyond Haramain
+ * Sumber: UIUX-Prompt-Beyond-Haramain.md (palet Haramain) digabung dengan struktur
+ * DESIGN.md "Architectural Wireframe" (zero-radius, hairline border, grid, tipografi).
+ * Background utama TETAP krem/putih (#FAF7F2) — near-black hanya untuk footer, CTA band,
+ * sidebar admin, tombol, dan overlay foto hero.
+ */
+:root {
+  /* ---- Warna ---- */
+  --color-bg: #FAF7F2;              /* ivory — latar utama */
+  --color-surface: #F3EFE7;          /* krem hangat — kartu */
+  --color-surface-high: #EBE4D6;     /* krem lebih tegas — hover/alt row */
+  --color-border: #E2DCCB;           /* hairline di atas latar terang */
+  --color-text: #1A1613;             /* near-black — teks utama */
+  --color-text-muted: #6B6358;
+  --color-primary: #1A1613;          /* near-black — aksen gelap (footer, CTA, sidebar, tombol) */
+  --color-on-primary: #F5F1EA;
+  --color-secondary: #5A4632;        /* deep brown */
+  --color-accent: #C9A14A;           /* Haramain Gold */
+  --color-accent-dark: #A9823B;
+  --color-success: #3F6B3F;
+  --color-error: #B3261E;
+  --color-hairline-dark: #3D3328;    /* hairline di atas latar gelap */
+
+  /* ---- Tipografi ---- */
+  --font-display: 'Space Grotesk', 'Hanken Grotesk', sans-serif;
+  --font-body: 'Geist', 'Hanken Grotesk', sans-serif;
+
+  --fs-display-xl: clamp(2rem, 1.3rem + 2.8vw, 3rem);
+  --fs-display-lg: clamp(1.6rem, 1.2rem + 1.8vw, 2.25rem);
+  --fs-display-md: clamp(1.25rem, 1.05rem + 0.8vw, 1.5rem);
+  --fs-display-sm: 1.25rem;
+  --fs-body-lg: 1rem;
+  --fs-body-md: 0.875rem;
+  --fs-body-sm: 0.75rem;
+  --fs-label: 0.6875rem;
+
+  /* ---- Spacing ---- */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2.5rem;
+  --space-2xl: 4rem;
+  --gutter: 1.5rem;
+  --margin: 3rem;
+
+  /* ---- Bentuk ---- */
+  --radius: 0px;          /* zero-radius default */
+  --radius-pill: 9999px;  /* pengecualian: badge/pill/step-number */
+
+  /* ---- Layout ---- */
+  --container-max: 1440px;
+  --header-h: 72px;
+  --sidebar-w: 240px;
+
+  /* ---- Transisi (hormati prefers-reduced-motion) ---- */
+  --dur-fast: 150ms;
+  --dur-base: 250ms;
+  --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+@media (max-width: 1279px) {
+  :root { --gutter: 1rem; --margin: 2rem; }
+}
+@media (max-width: 767px) {
+  :root { --gutter: 1rem; --margin: 1.25rem; --sidebar-w: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 0ms; --dur-base: 0ms; }
+  * { scroll-behavior: auto !important; }
+}

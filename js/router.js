@@ -1,0 +1,61 @@
+/**
+ * ROUTER — SPA hash router. Halaman dibuat sekali lalu disembunyikan/ditampilkan (DOM tidak dibuang).
+ * Rute: #/, #/jasa, #/destinasi/:slug, #/admin/login, #/admin/:page
+ */
+const Pages = {};
+function registerPage(name, def) { Pages[name] = Object.assign({ auth: 'public' }, def); }
+
+function go(name, param) {
+  const h = '#/' + name + (param ? '/' + encodeURIComponent(param) : '');
+  if (location.hash === h) route(); else location.hash = h;
+}
+
+function currentRoute() {
+  const raw = location.hash.replace(/^#\/?/, '');
+  const parts = raw.split('/');
+  return { isAdmin: parts[0] === 'admin', page: parts[0] === 'admin' ? (parts[1] || 'dashboard') : (parts[0] || 'beranda'), param: parts[0] === 'admin' ? parts[2] : parts[1] };
+}
+
+function route() {
+  const { isAdmin, page, param } = currentRoute();
+  const appRoot = document.getElementById('app');
+  const shellId = isAdmin ? 'admin-shell' : 'public-shell';
+
+  document.getElementById('public-shell').hidden = isAdmin;
+  document.getElementById('admin-shell').hidden = !isAdmin;
+
+  if (isAdmin && page !== 'login' && !AppState.token) {
+    location.hash = '#/admin/login';
+    return;
+  }
+  if (isAdmin && page === 'login' && AppState.token) {
+    location.hash = '#/admin/dashboard';
+    return;
+  }
+
+  const container = document.getElementById(shellId).querySelector('.route-outlet');
+  const key = (isAdmin ? 'admin:' : 'public:') + page;
+  const def = Pages[key] || Pages[isAdmin ? 'admin:dashboard' : 'public:beranda'];
+  if (!def) { container.innerHTML = '<div class="not-found"><h2>Halaman tidak ditemukan</h2></div>'; return; }
+
+  let el = container.querySelector('[data-page="' + key + '"]');
+  if (!el) {
+    el = document.createElement('section');
+    el.className = 'page';
+    el.dataset.page = key;
+    el.innerHTML = def.template ? def.template() : '';
+    container.appendChild(el);
+  }
+  container.querySelectorAll('.page').forEach(p => { p.hidden = p !== el; });
+
+  if (isAdmin) setActiveNav(page);
+  def.show && def.show(el, param && decodeURIComponent(param));
+  window.scrollTo({ top: 0, behavior: 'instant' in document.documentElement.style ? 'instant' : 'auto' });
+}
+
+function setActiveNav(page) {
+  document.querySelectorAll('.admin-nav a').forEach(a => a.classList.toggle('active', a.dataset.page === page));
+}
+
+window.addEventListener('hashchange', route);
+document.addEventListener('DOMContentLoaded', () => { if (!location.hash) location.hash = '#/beranda'; route(); });

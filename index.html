@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Beyond Haramain — Katalog Umroh & Wisata Islami</title>
+<meta name="description" content="Katalog terpadu kebutuhan ibadah Umroh & perjalanan wisata Islami ke berbagai negara: hotel, visa, tiket, tour guide, dan pendampingan.">
+<link rel="preconnect" href="https://script.google.com">
+<link rel="preconnect" href="https://script.googleusercontent.com">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" id="favicon-link" href="assets/favicon.png">
+
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/public.css">
+<link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ===================== PUBLIC SHELL ===================== -->
+  <div id="public-shell">
+    <header class="navbar">
+      <div class="container">
+        <a href="#/beranda" class="navbar-brand">
+          <img id="navbar-logo" src="assets/logo-placeholder.svg" alt="Beyond Haramain" onerror="this.style.display='none'">
+          <span>Beyond Haramain</span>
+        </a>
+        <nav class="navbar-links">
+          <a href="#/beranda">Beranda</a>
+          <a href="#/jasa">Semua Jasa</a>
+          <a href="#/beranda">Destinasi</a>
+          <a href="#/admin/login">Admin</a>
+        </nav>
+        <div class="navbar-actions">
+          <button class="navbar-burger" id="btn-mobile-menu" aria-label="Buka menu">☰</button>
+        </div>
+      </div>
+    </header>
+    <div class="mobile-menu" id="mobile-menu">
+      <a href="#/beranda">Beranda</a>
+      <a href="#/jasa">Semua Jasa</a>
+      <a href="#/admin/login">Admin</a>
+    </div>
+
+    <main class="route-outlet"></main>
+
+    <footer class="footer">
+      <div class="container">
+        <div class="footer-grid">
+          <div>
+            <h4>Beyond Haramain</h4>
+            <p>Penyedia layanan perjalanan Umroh berizin resmi dan wisata sejarah Islam terpercaya. Memudahkan kenyamanan beribadah dengan dukungan layanan warisan Haramain.</p>
+          </div>
+          <div>
+            <h4>Kontak &amp; Alamat</h4>
+            <ul>
+              <li id="footer-alamat">Menara Kencana, Jakarta Selatan</li>
+              <li id="footer-wa">-</li>
+              <li id="footer-ig">-</li>
+            </ul>
+          </div>
+          <div>
+            <h4>Navigasi Cepat</h4>
+            <ul><li><a href="#/jasa">Semua Jasa</a></li><li><a href="#/beranda">Destinasi</a></li><li><a href="#/admin/login">Portal Admin</a></li></ul>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <span>© <span id="footer-year"></span> Beyond Haramain. Hak Cipta Dilindungi.</span>
+          <span>PPIU Terakreditasi Resmi</span>
+        </div>
+      </div>
+    </footer>
+
+    <a id="wa-float-btn" class="wa-float" href="#" target="_blank" rel="noopener" aria-label="Chat WhatsApp">💬</a>
+  </div>
+
+  <!-- ===================== ADMIN SHELL ===================== -->
+  <div id="admin-shell" hidden>
+    <div class="admin-shell">
+      <aside class="admin-sidebar" id="admin-sidebar">
+        <div class="brand">BEYOND HARAMAIN<small>Architect Console</small></div>
+        <nav class="admin-nav">
+          <a href="#/admin/dashboard" data-page="dashboard">▦ Dashboard</a>
+          <a href="#/admin/produk" data-page="produk">▤ Kelola Produk</a>
+          <a href="#/admin/destinasi" data-page="destinasi">◎ Kelola Destinasi</a>
+          <a href="#/admin/statistik" data-page="statistik">▥ Statistik Landing</a>
+          <a href="#/admin/testimoni" data-page="testimoni">✦ Testimoni</a>
+          <a href="#/admin/foto" data-page="foto">▣ Kelola Foto</a>
+          <a href="#/admin/pengaturan" data-page="pengaturan">⚙ Pengaturan &amp; Brand</a>
+        </nav>
+        <div class="admin-footer">
+          <div id="admin-user-name">Admin</div>
+          <a href="#" id="btn-logout" style="color:var(--color-accent)">Keluar →</a>
+        </div>
+      </aside>
+      <div class="admin-main">
+        <div class="admin-topbar">
+          <button class="admin-mobile-toggle icon-btn" id="btn-toggle-sidebar">☰</button>
+          <span><span class="status-dot"></span>CacheService Active</span>
+          <a href="#/beranda" class="btn btn-ghost" style="margin-left:auto">← Lihat Situs Publik</a>
+        </div>
+        <div class="admin-content route-outlet"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>window.GAS_URL = 'https://script.google.com/macros/s/GANTI_DENGAN_DEPLOYMENT_ID/exec';</script>
+<script src="js/ui.js"></script>
+<script src="js/api.js"></script>
+<script src="js/router.js"></script>
+<script src="js/public.js"></script>
+<script src="js/admin.js"></script>
+<script>
+  document.getElementById('footer-year').textContent = new Date().getFullYear();
+  document.getElementById('btn-mobile-menu').addEventListener('click', () => {
+    document.getElementById('mobile-menu').classList.toggle('show');
+  });
+  document.getElementById('mobile-menu').addEventListener('click', (e) => {
+    if (e.target.tagName === 'A') document.getElementById('mobile-menu').classList.remove('show');
+  });
+  document.getElementById('btn-toggle-sidebar')?.addEventListener('click', () => {
+    document.getElementById('admin-sidebar').classList.toggle('open');
+  });
+  document.getElementById('btn-logout')?.addEventListener('click', (e) => { e.preventDefault(); logoutAdmin(); });
+
+  // Perbarui footer & WA float setiap kali data publik bootstrap siap
+  (function watchPublicData() {
+    const iv = setInterval(() => {
+      if (typeof PUBLIC_DATA !== 'undefined' && PUBLIC_DATA && PUBLIC_DATA.setting) {
+        const s = PUBLIC_DATA.setting;
+        if (s.wa_nomor) {
+          document.getElementById('wa-float-btn').href = waLink(s.wa_nomor, s.wa_template_default);
+          document.getElementById('footer-wa').textContent = '+' + s.wa_nomor.replace(/^0/, '62');
+        }
+        if (s.instagram_url) document.getElementById('footer-ig').innerHTML = `<a href="${s.instagram_url}" target="_blank" rel="noopener">Instagram</a>`;
+        if (s.logo_url) document.getElementById('navbar-logo').src = s.logo_url;
+        clearInterval(iv);
+      }
+    }, 300);
+    setTimeout(() => clearInterval(iv), 15000);
+  })();
+  renderAdminShellInfo();
+</script>
+</body>
+</html>

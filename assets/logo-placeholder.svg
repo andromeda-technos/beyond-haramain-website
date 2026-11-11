@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 32" width="120" height="24">
+  <rect x="0" y="2" width="28" height="28" fill="none" stroke="#C9A14A" stroke-width="1.5"/>
+  <path d="M14 7 L20 14 L20 25 L8 25 L8 14 Z" fill="#C9A14A"/>
+  <text x="34" y="21" font-family="'Space Grotesk', sans-serif" font-size="14" font-weight="600" fill="#1A1613">BEYOND HARAMAIN</text>
+</svg>
