@@ -8,4 +8,5 @@
  * Contoh URL yang benar:
  * https://script.google.com/macros/s/AKfycbxXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/exec
  */
-window.GAS_URL = 'PASTE_URL_DEPLOYMENT_ASLI_DI_SINI';
+window.GAS_URL =
+  "https://script.google.com/macros/s/AKfycbx1VO3ldQk8q8h4EStWrok3cl1MEi8Y2ItMZtd-azfKCQmg4n48CLMCBl-eS1et5uPslQ/exec";
