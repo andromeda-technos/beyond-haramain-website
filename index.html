@@ -12,10 +12,319 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="icon" id="favicon-link" href="assets/logo-placeholder.svg" type="image/svg+xml">
 
-<link rel="stylesheet" href="css/tokens.css">
-<link rel="stylesheet" href="css/base.css">
-<link rel="stylesheet" href="css/public.css">
-<link rel="stylesheet" href="css/admin.css">
+<!-- ===================== TAILWIND CSS (CDN) ===================== -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          bg: '#FAF7F2',
+          surface: '#F3EFE7',
+          surfaceHigh: '#EBE4D6',
+          hairline: '#E2DCCB',
+          hairlineDark: '#3D3328',
+          ink: '#1A1613',
+          inkMuted: '#6B6358',
+          onPrimary: '#F5F1EA',
+          secondary: '#5A4632',
+          gold: '#C9A14A',
+          goldDark: '#A9823B',
+          success: '#3F6B3F',
+          danger: '#B3261E'
+        },
+        fontFamily: {
+          display: ['"Space Grotesk"', '"Hanken Grotesk"', 'sans-serif'],
+          body: ['"Hanken Grotesk"', 'sans-serif']
+        },
+        keyframes: {
+          skeletonwave: { '0%': { backgroundPosition: '100% 50%' }, '100%': { backgroundPosition: '0 50%' } }
+        },
+        animation: {
+          skeletonwave: 'skeletonwave 1.4s ease infinite'
+        },
+        boxShadow: {
+          soft: '0 1px 2px rgba(26,22,19,0.04), 0 8px 24px -8px rgba(26,22,19,0.12)',
+          softLg: '0 16px 40px -16px rgba(26,22,19,0.28)'
+        }
+      }
+    }
+  };
+</script>
+
+<!--
+  Semua komponen (.btn, .card, .navbar, .admin-sidebar, dst) ditulis di sini memakai
+  @apply Tailwind. Nama class di js/public.js & js/admin.js TIDAK diubah — hanya "mesin"
+  CSS di balik nama itu yang sekarang Tailwind, jadi styling konsisten & mudah dirawat.
+-->
+<style type="text/tailwindcss">
+  @layer base {
+    html { scroll-behavior: smooth; }
+    body { @apply bg-bg text-ink font-body antialiased overflow-x-hidden; }
+    h1, h2, h3, h4 { @apply font-display font-medium leading-tight m-0; }
+    img { @apply max-w-full block; }
+    a { @apply text-inherit no-underline; }
+    button, input, select, textarea { font: inherit; color: inherit; }
+    button { @apply cursor-pointer; }
+    ul { @apply m-0 p-0 list-none; }
+    :focus-visible { outline: 2px solid #C9A14A; outline-offset: 2px; }
+  }
+
+  @layer components {
+    .container { @apply max-w-[1440px] mx-auto px-5 md:px-10; }
+
+    /* ---- Tipografi util ---- */
+    .display-xl { @apply text-[clamp(2rem,1.3rem+2.8vw,3rem)]; }
+    .display-lg { @apply text-[clamp(1.6rem,1.2rem+1.8vw,2.25rem)]; }
+    .display-md { @apply text-[clamp(1.25rem,1.05rem+0.8vw,1.5rem)]; }
+    .text-muted { @apply text-inkMuted; }
+    .label-tech { @apply font-body text-[11px] font-semibold tracking-[0.08em] uppercase text-goldDark; }
+
+    /* ---- Tombol ---- */
+    .btn { @apply inline-flex items-center justify-center gap-2 min-h-[44px] px-6 rounded-xl border border-transparent font-semibold text-sm tracking-wide transition-all duration-150 whitespace-nowrap; }
+    .btn:active { @apply scale-[0.98]; }
+    .btn-primary { @apply bg-ink text-onPrimary border-ink shadow-soft hover:bg-gold hover:border-gold hover:text-ink; }
+    .btn-secondary { @apply bg-bg text-ink border-hairline hover:border-gold; }
+    .btn-accent { @apply bg-gold text-ink border-gold shadow-soft hover:bg-goldDark; }
+    .btn-ghost { @apply bg-transparent text-inkMuted border-transparent hover:text-ink hover:underline underline-offset-4; }
+    .btn-danger { @apply bg-bg text-danger border-danger; }
+    .btn-block { @apply w-full; }
+    .btn[disabled] { @apply opacity-50 pointer-events-none; }
+
+    /* ---- Kartu ---- */
+    .card { @apply bg-surface border border-hairline rounded-2xl shadow-soft transition-shadow duration-200; }
+    .card:hover { @apply shadow-softLg; }
+
+    /* ---- Badge / pill ---- */
+    .badge { @apply inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold tracking-wide uppercase border border-hairline bg-bg; }
+    .badge-gold { @apply text-goldDark border-gold; }
+    .badge-success { @apply text-success border-success; }
+
+    /* ---- Input ---- */
+    .field { @apply flex flex-col gap-1 mb-4; }
+    .field label { @apply text-sm font-semibold text-ink; }
+    .field .help { @apply text-sm text-inkMuted; }
+    .input { @apply min-h-[48px] px-4 bg-bg border border-hairline rounded-xl text-ink w-full transition-colors duration-150; }
+    .input:focus { @apply border-gold outline-none; }
+    textarea.input { @apply min-h-[96px] py-2 resize-y; }
+
+    /* ---- Skeleton loading ---- */
+    .skeleton { @apply bg-gradient-to-r from-surface via-surfaceHigh to-surface animate-skeletonwave; background-size: 400% 100%; }
+
+    /* ---- Toast ---- */
+    #toast-root { @apply fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 pointer-events-none; width: min(420px, calc(100vw - 2rem)); }
+    .toast { @apply pointer-events-auto bg-ink text-onPrimary border border-hairlineDark rounded-xl px-6 py-4 text-sm flex items-center gap-2 opacity-0 translate-y-3 transition-all duration-300 shadow-softLg; }
+    .toast.show { @apply opacity-100 translate-y-0; }
+    .toast.error { @apply border-danger; }
+    .toast.success { @apply border-success; }
+
+    /* ---- Loading overlay ---- */
+    #loading-overlay { @apply fixed inset-0 bg-ink/40 hidden items-center justify-center z-[9998]; }
+    #loading-overlay.show { @apply flex; }
+    .spinner { @apply w-9 h-9 border-[3px] border-onPrimary border-t-gold rounded-full animate-spin; }
+
+    /* ---- Reveal ---- */
+    .reveal { @apply opacity-0 translate-y-4 transition-all duration-500; }
+    .reveal.in-view { @apply opacity-100 translate-y-0; }
+
+    .visually-hidden { @apply absolute w-px h-px overflow-hidden whitespace-nowrap; clip: rect(0 0 0 0); }
+    .grid-2 { @apply grid gap-6 grid-cols-1 sm:grid-cols-2; }
+    .grid-3 { @apply grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3; }
+    .grid-4 { @apply grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4; }
+
+    /* ===================== NAVBAR ===================== */
+    .navbar { @apply sticky top-0 z-[100] bg-bg/90 backdrop-blur border-b border-hairline h-[72px]; }
+    .navbar .container { @apply h-full flex items-center justify-between gap-6; }
+    .navbar-brand { @apply flex items-center gap-2 font-display font-semibold text-[1.05rem]; }
+    .navbar-brand img { @apply h-8 w-auto; }
+    .navbar-links { @apply hidden md:flex items-center gap-6; }
+    .navbar-links a { @apply text-sm font-medium text-inkMuted py-2 border-b-2 border-transparent transition-colors; }
+    .navbar-links a:hover, .navbar-links a.active { @apply text-ink border-gold; }
+    .navbar-actions { @apply flex items-center gap-2; }
+    .navbar-burger { @apply md:hidden flex w-11 h-11 items-center justify-center rounded-xl border border-hairline bg-bg; }
+    .mobile-menu { @apply fixed left-0 right-0 bottom-0 top-[72px] bg-bg z-[99] p-6 hidden flex-col gap-4 overflow-y-auto; }
+    .mobile-menu.show { @apply flex; }
+    .mobile-menu a { @apply text-lg font-semibold py-4 border-b border-hairline block; }
+
+    /* ===================== HERO ===================== */
+    .hero { @apply relative min-h-[560px] flex items-end text-onPrimary py-20 bg-ink bg-cover bg-center; }
+    .hero::before { content: ''; @apply absolute inset-0 bg-gradient-to-t from-black/90 via-black/55 to-black/20; }
+    .hero-content { @apply relative z-[1] max-w-xl; }
+    .hero-eyebrow { @apply text-gold mb-4 block; }
+    .hero h1 { @apply text-4xl md:text-5xl mb-4; }
+    .hero p { @apply text-[#D9D0C4] mb-6; max-width: 56ch; }
+    .hero-actions { @apply flex gap-4 flex-wrap; }
+
+    /* ===================== STAT STRIP ===================== */
+    .stat-strip { @apply bg-surface border-y border-hairline py-6; }
+    .stat-item { @apply text-center p-4 border-r border-hairline last:border-r-0; }
+    .stat-item .num { @apply font-display text-2xl text-goldDark; }
+    .stat-item .label { @apply text-sm text-inkMuted mt-1; }
+
+    /* ===================== SECTION ===================== */
+    .section { @apply py-20; }
+    .section-head { @apply flex items-end justify-between gap-6 mb-10 flex-wrap; }
+    .section-head h2 { @apply text-3xl mt-2; }
+
+    /* ===================== KARTU DESTINASI ===================== */
+    .destinasi-card { @apply relative aspect-[4/5] overflow-hidden rounded-2xl border border-hairline bg-surface shadow-soft transition-all duration-200; }
+    .destinasi-card img, .destinasi-card .img-ph { @apply absolute inset-0 w-full h-full object-cover; }
+    .destinasi-card::after { content: ''; @apply absolute inset-0 bg-gradient-to-t from-black/90 to-black/10; }
+    .destinasi-card .body { @apply absolute left-0 right-0 bottom-0 z-[1] p-6 text-onPrimary; }
+    .destinasi-card .badge { @apply mb-2 bg-white/10 border-white/30 text-onPrimary; }
+    .destinasi-card h3 { @apply text-xl mb-1; }
+    .destinasi-card p { @apply text-sm text-[#CFC6B8] mb-4; }
+    .destinasi-card a.link { @apply text-sm font-semibold text-gold; }
+    .destinasi-card:hover { @apply border-gold shadow-softLg -translate-y-1; }
+
+    /* ===================== KARTU PRODUK ===================== */
+    .produk-card { @apply flex flex-col overflow-hidden rounded-2xl; }
+    .produk-card .thumb { @apply aspect-[16/10] bg-surfaceHigh overflow-hidden; }
+    .produk-card .thumb img { @apply w-full h-full object-cover; }
+    .produk-card .body { @apply p-6 flex flex-col gap-2 flex-1; }
+    .produk-card .kategori { @apply text-[11px] uppercase tracking-wide text-inkMuted; }
+    .produk-card h3 { @apply text-base; }
+    .produk-card .desc { @apply text-sm text-inkMuted flex-1; }
+    .produk-card .harga-row { @apply flex items-baseline justify-between mt-2; }
+    .produk-card .harga { @apply font-display text-lg text-goldDark; }
+    .produk-card .harga-label { @apply text-sm text-inkMuted; }
+
+    /* ===================== ITINERARY TIMELINE ===================== */
+    .itinerary { @apply relative pl-14; }
+    .itinerary::before { content: ''; @apply absolute left-[23px] top-2 bottom-2 w-px bg-hairline; }
+    .itinerary-step { @apply relative mb-10; }
+    .itinerary-step .num { @apply absolute -left-14 top-0 w-12 h-12 rounded-full border-2 border-gold bg-bg flex items-center justify-center font-display font-semibold text-goldDark; }
+    .itinerary-step .thumb { @apply aspect-video overflow-hidden rounded-xl border border-hairline mb-4 bg-surface; }
+    .itinerary-step .thumb img { @apply w-full h-full object-cover; }
+    .itinerary-step h4 { @apply text-base mb-1; }
+    .itinerary-step p { @apply text-inkMuted text-sm; }
+
+    /* ===================== TESTIMONI ===================== */
+    .testimoni-card { @apply p-6 flex flex-col gap-4; }
+    .testimoni-card .stars { @apply text-gold tracking-widest; }
+    .testimoni-card .quote { @apply text-sm italic text-ink; }
+    .testimoni-card .who { @apply text-sm text-inkMuted font-semibold; }
+
+    /* ===================== CTA BAND ===================== */
+    .cta-band { @apply bg-ink text-onPrimary text-center py-20; }
+    .cta-band h2 { @apply text-3xl mx-auto mb-6; max-width: 40ch; }
+    .cta-band .trust-row { @apply mt-6 flex justify-center gap-6 flex-wrap text-sm text-[#CFC6B8]; }
+
+    /* ===================== FOOTER ===================== */
+    .footer { @apply bg-ink text-[#CFC6B8] pt-20 pb-6; }
+    .footer-grid { @apply grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr] gap-10 mb-10; }
+    .footer h4 { @apply text-onPrimary text-sm mb-4; }
+    .footer a, .footer p { @apply text-sm; }
+    .footer ul li { @apply mb-2; }
+    .footer-bottom { @apply border-t border-hairlineDark pt-4 flex justify-between flex-wrap gap-2 text-sm text-inkMuted; }
+
+    /* ===================== WA FLOAT ===================== */
+    .wa-float { @apply fixed right-6 bottom-6 z-[200] w-14 h-14 rounded-full bg-ink text-onPrimary border border-gold flex items-center justify-center shadow-softLg transition-transform; }
+    .wa-float:hover { @apply scale-105; }
+
+    .destinasi-hero { @apply min-h-[420px]; }
+    .breadcrumb { @apply text-sm text-[#CFC6B8] mb-4; }
+    .breadcrumb a { @apply text-gold; }
+    .not-found { @apply py-20 text-center; }
+
+    .filter-bar { @apply flex gap-2 flex-wrap mb-6; }
+    .filter-chip { @apply px-4 py-[0.4rem] rounded-full border border-hairline bg-bg text-sm font-semibold text-inkMuted transition-colors; }
+    .filter-chip.active { @apply border-gold text-goldDark bg-surface; }
+
+    /* ===================== ADMIN SHELL ===================== */
+    .admin-shell { @apply flex min-h-screen; }
+    .admin-sidebar { @apply w-64 md:w-60 flex-shrink-0 bg-ink text-onPrimary flex flex-col border-r border-hairlineDark fixed inset-y-0 left-0 -translate-x-full md:static md:translate-x-0 transition-transform duration-200 z-[150] overflow-y-auto; }
+    .admin-sidebar.open { @apply translate-x-0; }
+    .admin-sidebar .brand { @apply p-6 border-b border-hairlineDark font-display font-semibold; }
+    .admin-sidebar .brand small { @apply block text-[#9E9385] text-[11px] tracking-wide; }
+    .admin-nav { @apply flex-1 py-4; }
+    .admin-nav a { @apply flex items-center gap-2 px-6 py-3 text-sm text-[#CFC6B8] border-l-[3px] border-transparent transition-colors; }
+    .admin-nav a:hover { @apply bg-white/5 text-onPrimary; }
+    .admin-nav a.active { @apply bg-gold/10 border-gold text-onPrimary; }
+    .admin-nav .badge-count { @apply ml-auto bg-gold text-ink rounded-full text-[11px] px-2; }
+    .admin-footer { @apply px-6 py-4 border-t border-hairlineDark text-[11px] text-[#6B6358]; }
+
+    .admin-main { @apply flex-1 min-w-0; }
+    .admin-topbar { @apply sticky top-0 z-10 bg-bg border-b border-hairline px-6 md:px-10 py-4 flex items-center justify-between gap-4; }
+    .admin-topbar .status-dot { @apply w-2 h-2 rounded-full bg-success inline-block mr-1; }
+    .admin-content { @apply p-6 md:p-10; }
+    .admin-content h1 { @apply text-3xl mb-1; }
+    .admin-content .desc { @apply text-inkMuted mb-10; max-width: 70ch; }
+    .admin-mobile-toggle { @apply hidden; }
+    @media (max-width: 900px) {
+      .admin-mobile-toggle { @apply flex w-11 h-11 items-center justify-center rounded-xl border border-hairline bg-bg; }
+    }
+
+    /* ===================== STAT CARD ===================== */
+    .stat-card { @apply p-6 flex flex-col gap-2; }
+    .stat-card .big { @apply font-display text-2xl; }
+    .stat-card .meta { @apply text-sm text-inkMuted; }
+
+    /* ===================== TABLE ===================== */
+    .table-wrap { @apply overflow-x-auto border border-hairline bg-surface rounded-2xl; }
+    table.data-table { @apply w-full border-collapse; min-width: 640px; }
+    table.data-table th { @apply text-left text-[11px] uppercase tracking-wide text-inkMuted p-4 border-b border-hairline whitespace-nowrap; }
+    table.data-table td { @apply p-4 border-b border-hairline text-sm align-middle; }
+    table.data-table tr:last-child td { @apply border-b-0; }
+    table.data-table tr:hover td { @apply bg-surfaceHigh; }
+    .row-thumb { @apply w-12 h-12 object-cover rounded-lg border border-hairline bg-bg; }
+    .row-actions { @apply flex gap-2; }
+    .icon-btn { @apply w-9 h-9 inline-flex items-center justify-center rounded-lg border border-hairline bg-bg transition-colors; }
+    .icon-btn:hover { @apply border-gold; }
+    .icon-btn.danger:hover { @apply border-danger text-danger; }
+
+    .toolbar { @apply flex gap-4 justify-between flex-wrap mb-6 items-center; }
+    .toolbar .search { @apply max-w-xs flex-1 min-w-[200px]; }
+
+    .pagination { @apply flex gap-1 justify-end mt-4; }
+    .pagination button { @apply min-w-[36px] h-9 rounded-lg border border-hairline bg-bg; }
+    .pagination button.active { @apply bg-ink text-onPrimary border-ink; }
+
+    /* ===================== MODAL ===================== */
+    .modal-overlay { @apply fixed inset-0 bg-ink/50 z-[300] hidden items-start justify-center overflow-y-auto p-4 md:p-10; }
+    .modal-overlay.show { @apply flex; }
+    .modal { @apply bg-bg border border-hairline rounded-2xl shadow-softLg; width: min(720px, 100%); }
+    .modal-head { @apply p-6 border-b border-hairline flex justify-between items-center; }
+    .modal-head h3 { @apply text-lg; }
+    .modal-body { @apply p-6 max-h-[70vh] overflow-y-auto; }
+    .modal-foot { @apply p-6 border-t border-hairline flex justify-end gap-2; }
+
+    .form-grid { @apply grid grid-cols-1 md:grid-cols-2 gap-x-6; }
+    .form-grid .field.full { @apply md:col-span-2; }
+
+    /* ===================== ITINERARY BUILDER ===================== */
+    .itb-list { @apply flex flex-col gap-2 mb-4; }
+    .itb-item { @apply flex gap-4 items-start p-4 rounded-xl border border-hairline bg-surface cursor-grab; }
+    .itb-item.dragging { @apply opacity-40; }
+    .itb-item .handle { @apply text-inkMuted; padding-top: 0.6rem; }
+    .itb-item .num-badge { @apply w-7 h-7 rounded-full bg-gold text-ink flex items-center justify-center font-bold text-xs flex-shrink-0; margin-top: 0.4rem; }
+    .itb-item .fields { @apply flex-1 flex flex-col gap-2; }
+    .itb-item input, .itb-item textarea { @apply m-0; }
+
+    /* ===================== DROPZONE ===================== */
+    .dropzone { @apply border border-dashed border-hairline bg-surface rounded-2xl p-10 text-center text-inkMuted text-sm cursor-pointer transition-colors; }
+    .dropzone.dragover { @apply border-gold bg-surfaceHigh; }
+    .dropzone input[type="file"] { @apply hidden; }
+    .preview-thumb { @apply w-24 h-24 object-cover rounded-xl border border-hairline mt-2 mx-auto; }
+
+    /* ===================== LOGIN ===================== */
+    .login-wrap { @apply min-h-screen flex items-center justify-center bg-ink p-6; }
+    .login-card { @apply bg-bg border border-hairlineDark rounded-3xl p-10 md:p-12 shadow-softLg; width: min(420px, 100%); }
+    .login-card .logo-mark { @apply w-14 h-14 mx-auto mb-4 rounded-2xl border border-gold flex items-center justify-center; }
+    .login-card h1 { @apply text-center text-xl mb-1; }
+    .login-card .sub { @apply text-center text-inkMuted text-sm mb-10; }
+
+    /* ===================== THEME SWATCH ===================== */
+    .theme-swatch { @apply border border-hairline rounded-xl p-4 flex flex-col gap-2 cursor-pointer transition-colors; }
+    .theme-swatch.active { @apply border-gold; }
+    .theme-swatch .dots { @apply flex gap-1; }
+    .theme-swatch .dot { @apply w-5 h-5 rounded-full border border-hairline; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+</style>
 </head>
 <body>
 
@@ -94,14 +403,14 @@
         </nav>
         <div class="admin-footer">
           <div id="admin-user-name">Admin</div>
-          <a href="#" id="btn-logout" style="color:var(--color-accent)">Keluar →</a>
+          <a href="#" id="btn-logout" class="text-gold">Keluar →</a>
         </div>
       </aside>
       <div class="admin-main">
         <div class="admin-topbar">
           <button class="admin-mobile-toggle icon-btn" id="btn-toggle-sidebar">☰</button>
           <span><span class="status-dot"></span>CacheService Active</span>
-          <a href="#/beranda" class="btn btn-ghost" style="margin-left:auto">← Lihat Situs Publik</a>
+          <a href="#/beranda" class="btn btn-ghost ml-auto">← Lihat Situs Publik</a>
         </div>
         <div class="admin-content route-outlet"></div>
       </div>
@@ -110,7 +419,11 @@
 
 </div>
 
-<script>window.GAS_URL = 'https://script.google.com/macros/s/GANTI_DENGAN_DEPLOYMENT_ID/exec';</script>
+<!--
+  KONFIGURASI URL BACKEND: lihat & edit di file js/config.js
+  (bukan di sini lagi) — satu tempat, tidak ketimpa saat update kode lain.
+-->
+<script src="js/config.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/api.js"></script>
 <script src="js/router.js"></script>
