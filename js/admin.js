@@ -109,7 +109,12 @@ registerPage('admin:produk', {
             </select></div>
             <div class="field"><label>Mata Uang</label><select class="input" id="p-mata-uang"><option>IDR</option><option>USD</option><option>SAR</option></select></div>
             <div class="field full"><label>Harga</label><input class="input" type="number" id="p-harga" min="0"></div>
-            <div class="field full"><label>URL Foto (Drive)</label><input class="input" id="p-foto"></div>
+            <div class="field full">
+              <label>Foto Produk</label>
+              <div class="dropzone" id="p-dz-foto"><span>Klik atau tarik foto ke sini untuk mengunggah (PNG/JPG/WebP, maks 8MB)</span><input type="file" id="p-file-foto" accept=".png,.jpg,.jpeg,.webp"></div>
+              <img id="p-foto-preview" class="row-thumb" style="display:none;margin-top:var(--space-sm);width:96px;height:96px">
+              <input type="hidden" id="p-foto">
+            </div>
             <div class="field"><label><input type="checkbox" id="p-status" checked> Tampil di katalog publik</label></div>
           </div>
         </div>
@@ -121,6 +126,7 @@ registerPage('admin:produk', {
     if (!data) return;
     const select = el.querySelector('#p-destinasi');
     select.innerHTML = '<option value="">Umum / Semua</option>' + data.destinasi.map(d => `<option value="${esc(d.slug)}">${esc(d.nama_negara)}</option>`).join('');
+    const pFoto = setupFotoUploadField(el, { dzId: 'p-dz-foto', fileId: 'p-file-foto', previewId: 'p-foto-preview', hiddenId: 'p-foto', kategori: 'produk' });
 
     const renderTable = (filterQ) => {
       let rows = ADMIN_DATA.produk.slice().sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
@@ -146,6 +152,7 @@ registerPage('admin:produk', {
       el.querySelector('#form-produk').reset();
       el.querySelector('#p-id').value = '';
       el.querySelector('#p-status').checked = true;
+      pFoto.setPreview('');
       el.querySelector('#modal-produk-title').textContent = 'Tambah Produk';
       openModal('modal-produk');
     };
@@ -163,7 +170,7 @@ registerPage('admin:produk', {
         el.querySelector('#p-tipe-harga').value = p.tipe_harga;
         el.querySelector('#p-mata-uang').value = p.mata_uang || 'IDR';
         el.querySelector('#p-harga').value = p.harga || '';
-        el.querySelector('#p-foto').value = p.foto_url || '';
+        pFoto.setPreview(p.foto_url || '');
         el.querySelector('#p-status').checked = (p.status_tampil === true || p.status_tampil === 'TRUE');
         el.querySelector('#modal-produk-title').textContent = 'Edit Produk';
         openModal('modal-produk');
@@ -224,7 +231,12 @@ registerPage('admin:destinasi', {
             <div class="field"><label>Nama Negara *</label><input class="input" id="d-nama" required></div>
             <div class="field"><label>URL Slug *</label><input class="input" id="d-slug" required placeholder="mis. saudi, turki, mesir"></div>
             <div class="field full"><label>Deskripsi Singkat</label><textarea class="input" id="d-deskripsi"></textarea></div>
-            <div class="field full"><label>URL Foto Hero (Drive)</label><input class="input" id="d-foto-hero"></div>
+            <div class="field full">
+              <label>Foto Hero</label>
+              <div class="dropzone" id="d-dz-foto-hero"><span>Klik atau tarik foto ke sini untuk mengunggah (PNG/JPG/WebP, maks 8MB)</span><input type="file" id="d-file-foto-hero" accept=".png,.jpg,.jpeg,.webp"></div>
+              <img id="d-foto-hero-preview" class="row-thumb" style="display:none;margin-top:var(--space-sm);width:96px;height:96px">
+              <input type="hidden" id="d-foto-hero">
+            </div>
             <div class="field full"><label>Judul Hero (bebas, bukan otomatis nama negara) *</label><input class="input" id="d-judul-hero" required placeholder="mis. Napak Tilas Peradaban Islam Istanbul &amp; Bursa"></div>
             <div class="field full"><label>Subjudul Hero</label><textarea class="input" id="d-subjudul-hero"></textarea></div>
             <div class="field"><label><input type="checkbox" id="d-status" checked> Publikasikan halaman ini</label></div>
@@ -236,6 +248,7 @@ registerPage('admin:destinasi', {
   show: async (el) => {
     const data = await ensureAdminData();
     if (!data) return;
+    const dFotoHero = setupFotoUploadField(el, { dzId: 'd-dz-foto-hero', fileId: 'd-file-foto-hero', previewId: 'd-foto-hero-preview', hiddenId: 'd-foto-hero', kategori: 'destinasi' });
     const renderTable = () => {
       el.querySelector('#destinasi-tbody').innerHTML = ADMIN_DATA.destinasi.slice().sort((a, b) => (a.urutan || 0) - (b.urutan || 0)).map(d => {
         const stepCount = ADMIN_DATA.itinerary.filter(s => Number(s.destinasi_id) === Number(d.id)).length;
@@ -261,6 +274,7 @@ registerPage('admin:destinasi', {
       el.querySelector('#form-destinasi').reset();
       el.querySelector('#d-id').value = '';
       el.querySelector('#d-status').checked = true;
+      dFotoHero.setPreview('');
       el.querySelector('#modal-destinasi-title').textContent = 'Tambah Destinasi';
       openModal('modal-destinasi');
     };
@@ -275,7 +289,7 @@ registerPage('admin:destinasi', {
         el.querySelector('#d-nama').value = d.nama_negara;
         el.querySelector('#d-slug').value = d.slug;
         el.querySelector('#d-deskripsi').value = d.deskripsi_singkat || '';
-        el.querySelector('#d-foto-hero').value = d.foto_hero_url || '';
+        dFotoHero.setPreview(d.foto_hero_url || '');
         el.querySelector('#d-judul-hero').value = d.judul_hero || '';
         el.querySelector('#d-subjudul-hero').value = d.subjudul_hero || '';
         el.querySelector('#d-status').checked = (d.status_tampil === true || d.status_tampil === 'TRUE');
@@ -354,7 +368,11 @@ function openItineraryBuilder(el, destId, onSaved) {
         <div class="fields">
           <input class="input" data-f="judul_step" placeholder="Judul step (mis. Hari 1: Kedatangan Jeddah)" value="${esc(s.judul_step)}">
           <textarea class="input" data-f="deskripsi" placeholder="Deskripsi" rows="2">${esc(s.deskripsi || '')}</textarea>
-          <input class="input" data-f="foto_url" placeholder="URL foto (opsional)" value="${esc(s.foto_url || '')}">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            ${s.foto_url ? `<img src="${esc(s.foto_url)}" class="row-thumb" style="width:40px;height:40px">` : ''}
+            <button type="button" class="btn btn-secondary" data-upload="${i}" style="min-height:32px;padding:4px 12px;font-size:12px">${s.foto_url ? 'Ganti Foto' : 'Unggah Foto (opsional)'}</button>
+            <input type="file" class="itb-file" data-idx="${i}" accept=".png,.jpg,.jpeg,.webp" hidden>
+          </div>
         </div>
         <button type="button" class="icon-btn danger" data-remove="${i}">🗑</button>
       </div>`).join('') || '<p class="text-muted">Belum ada step. Tambahkan minimal 1 step.</p>';
@@ -369,7 +387,23 @@ function openItineraryBuilder(el, destId, onSaved) {
   });
   listEl.addEventListener('click', (e) => {
     const rm = e.target.closest('[data-remove]');
-    if (rm) { steps.splice(Number(rm.dataset.remove), 1); renderList(); }
+    if (rm) { steps.splice(Number(rm.dataset.remove), 1); renderList(); return; }
+    const up = e.target.closest('[data-upload]');
+    if (up) listEl.querySelector('.itb-file[data-idx="' + up.dataset.upload + '"]').click();
+  });
+  listEl.addEventListener('change', async (e) => {
+    const fileInput = e.target.closest('.itb-file'); if (!fileInput) return;
+    const file = fileInput.files[0]; if (!file) return;
+    if (!/^image\/(png|jpeg|webp)$/.test(file.type)) return showToast('Format foto harus PNG, JPG, atau WebP.', 'error');
+    const idx = Number(fileInput.dataset.idx);
+    const base64 = await fileToBase64(file);
+    showLoading(true);
+    const res = await api('fotoUpload', { kategori: 'destinasi', base64, mime: file.type, namaFile: file.name });
+    showLoading(false);
+    if (!res.success) return showToast(res.message, 'error');
+    steps[idx].foto_url = res.data.url;
+    showToast('Foto step berhasil diunggah.');
+    renderList();
   });
   listEl.addEventListener('dragstart', (e) => {
     const item = e.target.closest('.itb-item'); if (!item) return;
@@ -546,6 +580,48 @@ registerPage('admin:pengaturan', {
     };
   }
 });
+
+/**
+ * Dropzone unggah foto lokal generik (dipakai di form Produk, Destinasi, Itinerary) —
+ * mengunggah ke Drive via apiFotoUpload lalu menyimpan URL hasil ke input hidden.
+ */
+function setupFotoUploadField(el, { dzId, fileId, previewId, hiddenId, kategori }) {
+  const dz = el.querySelector('#' + dzId);
+  const input = el.querySelector('#' + fileId);
+  const preview = el.querySelector('#' + previewId);
+  const hidden = el.querySelector('#' + hiddenId);
+
+  async function handleFile(file) {
+    if (!/^image\/(png|jpeg|webp)$/.test(file.type)) return showToast('Format foto harus PNG, JPG, atau WebP.', 'error');
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = 'block';
+    const base64 = await fileToBase64(file);
+    showLoading(true);
+    const res = await api('fotoUpload', { kategori, base64, mime: file.type, namaFile: file.name });
+    showLoading(false);
+    if (!res.success) return showToast(res.message, 'error');
+    hidden.value = res.data.url;
+    showToast('Foto berhasil diunggah.');
+  }
+
+  if (!dz.dataset.wired) {
+    dz.dataset.wired = '1';
+    dz.addEventListener('click', () => input.click());
+    dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.classList.add('dragover'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+    dz.addEventListener('drop', (e) => { e.preventDefault(); dz.classList.remove('dragover'); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+    input.addEventListener('change', () => { if (input.files[0]) handleFile(input.files[0]); });
+  }
+
+  return {
+    setPreview(url) {
+      hidden.value = url || '';
+      input.value = '';
+      preview.src = url || '';
+      preview.style.display = url ? 'block' : 'none';
+    }
+  };
+}
 
 function setupLogoDropzone(el, dzId, inputId, previewId, jenis) {
   const dz = el.querySelector('#' + dzId);
