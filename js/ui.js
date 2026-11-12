@@ -118,6 +118,80 @@ function fileToBase64(file) {
   });
 }
 
+/**
+ * Kompres & resize foto jadi data: URI yang disimpan langsung di sel Spreadsheet
+ * (bukan link Google Drive) — jadi gambar tampil langsung tanpa fetch eksternal
+ * dan tidak kena blokir hotlink Drive. Sel Sheets maksimal ~50.000 karakter,
+ * jadi hasil dipaksa di bawah itu dengan menurunkan kualitas/ukuran bertahap.
+ */
+function resizeImageToDataUrl(file, opt) {
+  opt = opt || {};
+  const maxDim = opt.maxDim || 1280;
+  const maxChars = opt.maxChars || 42000;
+  const outputMime = opt.outputMime || "image/jpeg";
+  const canCompress = outputMime === "image/jpeg"; // PNG di canvas selalu lossless, tidak punya parameter kualitas
+  const minDim = opt.minDim || 160;
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const objUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objUrl);
+      let w = img.naturalWidth || img.width;
+      let h = img.naturalHeight || img.height;
+      const scale = Math.min(1, maxDim / Math.max(w, h));
+      w = Math.max(1, Math.round(w * scale));
+      h = Math.max(1, Math.round(h * scale));
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      let quality = 0.82;
+      let dataUrl = "";
+      for (let i = 0; i < 20; i++) {
+        canvas.width = w;
+        canvas.height = h;
+        ctx.clearRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        dataUrl = canvas.toDataURL(outputMime, canCompress ? quality : undefined);
+        if (dataUrl.length <= maxChars) break;
+        if (canCompress && quality > 0.35) quality -= 0.08;
+        else {
+          w = Math.max(minDim, Math.round(w * 0.85));
+          h = Math.max(minDim, Math.round(h * 0.85));
+        }
+      }
+      if (dataUrl.length > maxChars) {
+        reject(new Error("Berkas terlalu kompleks untuk dikompres di bawah batas ukuran. Coba berkas lain."));
+        return;
+      }
+      resolve(dataUrl);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objUrl);
+      reject(new Error("Gagal membaca berkas foto."));
+    };
+    img.src = objUrl;
+  });
+}
+
+/**
+ * Seperti resizeImageToDataUrl, tapi untuk logo/favicon: SVG & ICO dilewatkan langsung
+ * (sudah kecil & vektor/ikon, tidak perlu—dan tidak bisa—diproses lewat canvas tanpa
+ * kehilangan kualitas), sedangkan PNG/JPG dirasterisasi ke PNG agar transparansi terjaga.
+ */
+function fileToStorableDataUrl(file, opt) {
+  opt = opt || {};
+  const maxChars = opt.maxChars || 45000;
+  if (/^image\/(svg\+xml|x-icon|vnd\.microsoft\.icon)$/.test(file.type)) {
+    return fileToBase64(file).then((b64) => {
+      const dataUrl = "data:" + file.type + ";base64," + b64;
+      if (dataUrl.length > maxChars) {
+        throw new Error("Berkas terlalu besar. Gunakan berkas yang lebih kecil.");
+      }
+      return dataUrl;
+    });
+  }
+  return resizeImageToDataUrl(file, Object.assign({ outputMime: "image/png", maxDim: 512, minDim: 32 }, opt));
+}
+
 function openModal(id) {
   document.getElementById(id)?.classList.add("show");
 }

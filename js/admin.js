@@ -126,7 +126,7 @@ registerPage('admin:produk', {
     if (!data) return;
     const select = el.querySelector('#p-destinasi');
     select.innerHTML = '<option value="">Umum / Semua</option>' + data.destinasi.map(d => `<option value="${esc(d.slug)}">${esc(d.nama_negara)}</option>`).join('');
-    const pFoto = setupFotoUploadField(el, { dzId: 'p-dz-foto', fileId: 'p-file-foto', previewId: 'p-foto-preview', hiddenId: 'p-foto', kategori: 'produk' });
+    const pFoto = setupFotoUploadField(el, { dzId: 'p-dz-foto', fileId: 'p-file-foto', previewId: 'p-foto-preview', hiddenId: 'p-foto' });
 
     const renderTable = (filterQ) => {
       let rows = ADMIN_DATA.produk.slice().sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
@@ -248,7 +248,7 @@ registerPage('admin:destinasi', {
   show: async (el) => {
     const data = await ensureAdminData();
     if (!data) return;
-    const dFotoHero = setupFotoUploadField(el, { dzId: 'd-dz-foto-hero', fileId: 'd-file-foto-hero', previewId: 'd-foto-hero-preview', hiddenId: 'd-foto-hero', kategori: 'destinasi' });
+    const dFotoHero = setupFotoUploadField(el, { dzId: 'd-dz-foto-hero', fileId: 'd-file-foto-hero', previewId: 'd-foto-hero-preview', hiddenId: 'd-foto-hero' });
     const renderTable = () => {
       el.querySelector('#destinasi-tbody').innerHTML = ADMIN_DATA.destinasi.slice().sort((a, b) => (a.urutan || 0) - (b.urutan || 0)).map(d => {
         const stepCount = ADMIN_DATA.itinerary.filter(s => Number(s.destinasi_id) === Number(d.id)).length;
@@ -396,14 +396,16 @@ function openItineraryBuilder(el, destId, onSaved) {
     const file = fileInput.files[0]; if (!file) return;
     if (!/^image\/(png|jpeg|webp)$/.test(file.type)) return showToast('Format foto harus PNG, JPG, atau WebP.', 'error');
     const idx = Number(fileInput.dataset.idx);
-    const base64 = await fileToBase64(file);
     showLoading(true);
-    const res = await api('fotoUpload', { kategori: 'destinasi', base64, mime: file.type, namaFile: file.name });
-    showLoading(false);
-    if (!res.success) return showToast(res.message, 'error');
-    steps[idx].foto_url = res.data.url;
-    showToast('Foto step berhasil diunggah.');
-    renderList();
+    try {
+      steps[idx].foto_url = await resizeImageToDataUrl(file, { maxDim: 900, maxChars: 30000 });
+      showToast('Foto step siap.');
+    } catch (err) {
+      showToast(err.message || 'Gagal memproses foto.', 'error');
+    } finally {
+      showLoading(false);
+      renderList();
+    }
   });
   listEl.addEventListener('dragstart', (e) => {
     const item = e.target.closest('.itb-item'); if (!item) return;
@@ -582,10 +584,12 @@ registerPage('admin:pengaturan', {
 });
 
 /**
- * Dropzone unggah foto lokal generik (dipakai di form Produk, Destinasi, Itinerary) —
- * mengunggah ke Drive via apiFotoUpload lalu menyimpan URL hasil ke input hidden.
+ * Dropzone unggah foto lokal generik (dipakai di form Produk, Destinasi, Itinerary).
+ * Foto dikompres di browser lalu disimpan sebagai data: URI langsung di sel Spreadsheet
+ * (bukan link Google Drive) — jadi gambar selalu tampil, tidak bergantung pada
+ * kebijakan hotlink/sharing Drive yang sering berubah dan memblokir akses.
  */
-function setupFotoUploadField(el, { dzId, fileId, previewId, hiddenId, kategori }) {
+function setupFotoUploadField(el, { dzId, fileId, previewId, hiddenId }) {
   const dz = el.querySelector('#' + dzId);
   const input = el.querySelector('#' + fileId);
   const preview = el.querySelector('#' + previewId);
@@ -593,15 +597,18 @@ function setupFotoUploadField(el, { dzId, fileId, previewId, hiddenId, kategori 
 
   async function handleFile(file) {
     if (!/^image\/(png|jpeg|webp)$/.test(file.type)) return showToast('Format foto harus PNG, JPG, atau WebP.', 'error');
-    preview.src = URL.createObjectURL(file);
-    preview.style.display = 'block';
-    const base64 = await fileToBase64(file);
     showLoading(true);
-    const res = await api('fotoUpload', { kategori, base64, mime: file.type, namaFile: file.name });
-    showLoading(false);
-    if (!res.success) return showToast(res.message, 'error');
-    hidden.value = res.data.url;
-    showToast('Foto berhasil diunggah.');
+    try {
+      const dataUrl = await resizeImageToDataUrl(file);
+      hidden.value = dataUrl;
+      preview.src = dataUrl;
+      preview.style.display = 'block';
+      showToast('Foto siap, klik Simpan untuk menerapkan.');
+    } catch (err) {
+      showToast(err.message || 'Gagal memproses foto.', 'error');
+    } finally {
+      showLoading(false);
+    }
   }
 
   if (!dz.dataset.wired) {
@@ -623,6 +630,7 @@ function setupFotoUploadField(el, { dzId, fileId, previewId, hiddenId, kategori 
   };
 }
 
+/** Logo/favicon disimpan sebagai data: URI lewat settingSimpan — lihat catatan di setupFotoUploadField. */
 function setupLogoDropzone(el, dzId, inputId, previewId, jenis) {
   const dz = el.querySelector('#' + dzId);
   const input = el.querySelector('#' + inputId);
@@ -634,15 +642,25 @@ function setupLogoDropzone(el, dzId, inputId, previewId, jenis) {
   input.addEventListener('change', () => { if (input.files[0]) handleFile(input.files[0]); });
 
   async function handleFile(file) {
-    preview.src = URL.createObjectURL(file);
-    preview.style.display = 'block';
-    const base64 = await fileToBase64(file);
+    const okMime = jenis === 'logo'
+      ? /^image\/(png|svg\+xml|jpeg)$/.test(file.type)
+      : /^image\/(png|x-icon|vnd\.microsoft\.icon)$/.test(file.type);
+    if (!okMime) return showToast(jenis === 'logo' ? 'Logo harus berformat PNG, SVG, atau JPG.' : 'Favicon harus berformat ICO atau PNG persegi.', 'error');
     showLoading(true);
-    const res = await api('logoFaviconUpload', { jenis, base64, mime: file.type, namaFile: file.name });
-    showLoading(false);
-    if (!res.success) return showToast(res.message, 'error');
-    showToast((jenis === 'logo' ? 'Logo' : 'Favicon') + ' berhasil diunggah.');
-    await ensureAdminData(true);
+    try {
+      const dataUrl = await fileToStorableDataUrl(file, { maxDim: jenis === 'logo' ? 480 : 128 });
+      const key = jenis === 'logo' ? 'logo_url' : 'favicon_url';
+      const res = await api('settingSimpan', { pairs: { [key]: dataUrl } });
+      if (!res.success) { showToast(res.message, 'error'); return; }
+      preview.src = dataUrl;
+      preview.style.display = 'block';
+      showToast((jenis === 'logo' ? 'Logo' : 'Favicon') + ' berhasil diperbarui.');
+      await ensureAdminData(true);
+    } catch (err) {
+      showToast(err.message || 'Gagal memproses berkas.', 'error');
+    } finally {
+      showLoading(false);
+    }
   }
 }
 
@@ -686,13 +704,20 @@ registerPage('admin:foto', {
     dz.onclick = () => input.click();
     input.onchange = async () => {
       const file = input.files[0]; if (!file) return;
-      const base64 = await fileToBase64(file);
+      if (!/^image\/(png|jpeg|webp)$/.test(file.type)) return showToast('Format foto harus PNG, JPG, atau WebP.', 'error');
       showLoading(true);
-      const res = await api('fotoUpload', { kategori, base64, mime: file.type, namaFile: file.name });
-      showLoading(false);
-      if (!res.success) return showToast(res.message, 'error');
-      showToast('Foto diunggah.');
-      load();
+      try {
+        const dataUrl = await resizeImageToDataUrl(file);
+        const res = await api('fotoUpload', { kategori, dataUrl, namaFile: file.name });
+        if (!res.success) return showToast(res.message, 'error');
+        showToast('Foto diunggah.');
+        load();
+      } catch (err) {
+        showToast(err.message || 'Gagal memproses foto.', 'error');
+      } finally {
+        showLoading(false);
+        input.value = '';
+      }
     };
     load();
   }
