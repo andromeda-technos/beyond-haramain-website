@@ -237,6 +237,11 @@
     .admin-sidebar.open { @apply translate-x-0; }
     .admin-sidebar-backdrop { @apply fixed inset-0 bg-black/50 z-[140] opacity-0 pointer-events-none transition-opacity duration-200 md:hidden; }
     .admin-sidebar-backdrop.show { @apply opacity-100 pointer-events-auto; }
+    /* Layar login: sembunyikan sidebar & topbar, menu admin cuma tampil setelah berhasil login */
+    .admin-shell.is-login-screen .admin-sidebar,
+    .admin-shell.is-login-screen .admin-sidebar-backdrop,
+    .admin-shell.is-login-screen .admin-topbar { @apply hidden; }
+    .admin-shell.is-login-screen .admin-content { @apply p-0; }
     .admin-sidebar .brand { @apply p-6 border-b border-hairlineDark font-display font-semibold; }
     .admin-sidebar .brand small { @apply block text-[#9E9385] text-[11px] tracking-wide; }
     .admin-nav { @apply flex-1 py-4; }

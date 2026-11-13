@@ -26,6 +26,8 @@ function route() {
 
   document.getElementById('public-shell').hidden = isAdmin;
   document.getElementById('admin-shell').hidden = !isAdmin;
+  // Sidebar & menu admin cuma tampil setelah login — di layar login, hanya form-nya saja.
+  document.querySelector('#admin-shell .admin-shell').classList.toggle('is-login-screen', isAdmin && page === 'login');
 
   if (isAdmin && page !== 'login' && !AppState.token) {
     location.hash = '#/' + ADMIN_PATH + '/login';
