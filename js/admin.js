@@ -19,7 +19,7 @@ function logoutAdmin() {
   AppState.token = ''; AppState.adminEmail = ''; AppState.adminNama = '';
   Store.del('token'); Store.del('adminEmail'); Store.del('adminNama');
   ADMIN_DATA = null;
-  location.hash = '#/admin/login';
+  location.hash = '#/' + ADMIN_PATH + '/login';
 }
 
 // ---------------------------------------------------------------- SHELL (sidebar + topbar), dirender sekali di index.html
@@ -57,7 +57,7 @@ registerPage('admin:login', {
       ADMIN_DATA = res.data.boot;
       renderAdminShellInfo();
       showToast('Berhasil masuk. Selamat datang, ' + res.data.nama + '.');
-      location.hash = '#/admin/dashboard';
+      location.hash = '#/' + ADMIN_PATH + '/dashboard';
     };
   }
 });

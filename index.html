@@ -235,6 +235,8 @@
     .admin-shell { @apply flex min-h-screen; }
     .admin-sidebar { @apply w-64 md:w-60 flex-shrink-0 bg-ink text-onPrimary flex flex-col border-r border-hairlineDark fixed inset-y-0 left-0 -translate-x-full md:static md:translate-x-0 transition-transform duration-200 z-[150] overflow-y-auto; }
     .admin-sidebar.open { @apply translate-x-0; }
+    .admin-sidebar-backdrop { @apply fixed inset-0 bg-black/50 z-[140] opacity-0 pointer-events-none transition-opacity duration-200 md:hidden; }
+    .admin-sidebar-backdrop.show { @apply opacity-100 pointer-events-auto; }
     .admin-sidebar .brand { @apply p-6 border-b border-hairlineDark font-display font-semibold; }
     .admin-sidebar .brand small { @apply block text-[#9E9385] text-[11px] tracking-wide; }
     .admin-nav { @apply flex-1 py-4; }
@@ -251,7 +253,7 @@
     .admin-content h1 { @apply text-3xl mb-1; }
     .admin-content .desc { @apply text-inkMuted mb-10; max-width: 70ch; }
     .admin-mobile-toggle { @apply hidden; }
-    @media (max-width: 900px) {
+    @media (max-width: 767px) {
       .admin-mobile-toggle { @apply flex w-11 h-11 items-center justify-center rounded-xl border border-hairline bg-bg; }
     }
 
@@ -342,7 +344,6 @@
           <a href="#/beranda">Beranda</a>
           <a href="#/jasa">Semua Jasa</a>
           <a href="#/beranda">Destinasi</a>
-          <a href="#/admin/login">Admin</a>
         </nav>
         <div class="navbar-actions">
           <button class="navbar-burger" id="btn-mobile-menu" aria-label="Buka menu">☰</button>
@@ -352,7 +353,6 @@
     <div class="mobile-menu" id="mobile-menu">
       <a href="#/beranda">Beranda</a>
       <a href="#/jasa">Semua Jasa</a>
-      <a href="#/admin/login">Admin</a>
     </div>
 
     <main class="route-outlet"></main>
@@ -374,7 +374,7 @@
           </div>
           <div>
             <h4>Navigasi Cepat</h4>
-            <ul><li><a href="#/jasa">Semua Jasa</a></li><li><a href="#/beranda">Destinasi</a></li><li><a href="#/admin/login">Portal Admin</a></li></ul>
+            <ul><li><a href="#/jasa">Semua Jasa</a></li><li><a href="#/beranda">Destinasi</a></li></ul>
           </div>
         </div>
         <div class="footer-bottom">
@@ -390,16 +390,17 @@
   <!-- ===================== ADMIN SHELL ===================== -->
   <div id="admin-shell" hidden>
     <div class="admin-shell">
+      <div class="admin-sidebar-backdrop" id="admin-sidebar-backdrop"></div>
       <aside class="admin-sidebar" id="admin-sidebar">
         <div class="brand">BEYOND HARAMAIN<small>Architect Console</small></div>
         <nav class="admin-nav">
-          <a href="#/admin/dashboard" data-page="dashboard">▦ Dashboard</a>
-          <a href="#/admin/produk" data-page="produk">▤ Kelola Produk</a>
-          <a href="#/admin/destinasi" data-page="destinasi">◎ Kelola Destinasi</a>
-          <a href="#/admin/statistik" data-page="statistik">▥ Statistik Landing</a>
-          <a href="#/admin/testimoni" data-page="testimoni">✦ Testimoni</a>
-          <a href="#/admin/foto" data-page="foto">▣ Kelola Foto</a>
-          <a href="#/admin/pengaturan" data-page="pengaturan">⚙ Pengaturan &amp; Brand</a>
+          <a href="#" data-page="dashboard">▦ Dashboard</a>
+          <a href="#" data-page="produk">▤ Kelola Produk</a>
+          <a href="#" data-page="destinasi">◎ Kelola Destinasi</a>
+          <a href="#" data-page="statistik">▥ Statistik Landing</a>
+          <a href="#" data-page="testimoni">✦ Testimoni</a>
+          <a href="#" data-page="foto">▣ Kelola Foto</a>
+          <a href="#" data-page="pengaturan">⚙ Pengaturan &amp; Brand</a>
         </nav>
         <div class="admin-footer">
           <div id="admin-user-name">Admin</div>
@@ -437,9 +438,20 @@
   document.getElementById('mobile-menu').addEventListener('click', (e) => {
     if (e.target.tagName === 'A') document.getElementById('mobile-menu').classList.remove('show');
   });
+  // Sidebar admin: hrefs dibentuk dari ADMIN_PATH (js/config.js), bukan di-hardcode di HTML.
+  document.querySelectorAll('.admin-nav a[data-page]').forEach(a => {
+    a.href = '#/' + ADMIN_PATH + '/' + a.dataset.page;
+  });
+  function closeAdminSidebar() {
+    document.getElementById('admin-sidebar').classList.remove('open');
+    document.getElementById('admin-sidebar-backdrop').classList.remove('show');
+  }
   document.getElementById('btn-toggle-sidebar')?.addEventListener('click', () => {
     document.getElementById('admin-sidebar').classList.toggle('open');
+    document.getElementById('admin-sidebar-backdrop').classList.toggle('show');
   });
+  document.getElementById('admin-sidebar-backdrop')?.addEventListener('click', closeAdminSidebar);
+  document.querySelector('.admin-nav')?.addEventListener('click', (e) => { if (e.target.closest('a')) closeAdminSidebar(); });
   document.getElementById('btn-logout')?.addEventListener('click', (e) => { e.preventDefault(); logoutAdmin(); });
 
   // Perbarui footer & WA float setiap kali data publik bootstrap siap

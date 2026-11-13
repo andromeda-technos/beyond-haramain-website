@@ -9,4 +9,12 @@
  * https://script.google.com/macros/s/AKfycbxXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/exec
  */
 window.GAS_URL =
-  "https://script.google.com/macros/s/AKfycbzvlzyfTZiBbZ8AX7Dx6BMuoObSEmX3N2O4JMNiQ_4D6B1IsV11G2EimR3Vr1e7o7ARUA/exec";
+  "https://script.google.com/macros/s/AKfycbw4GrGoCfEziuD4UaCP3Z0b-F3lR5wV1JToyJ5Fjs9hZ_nsPyGEV3IUMljDdTfKFpw2-g/exec";
+
+/**
+ * PATH ADMIN — ganti "admin" (mudah ditebak bot/scanner) jadi slug rahasia.
+ * Bukan pengaman utama (password & token tetap kunci sebenarnya), tapi menghindari
+ * tebakan otomatis ke /admin, /login, /cms, dst. Ganti kapan saja, lalu beri tahu
+ * sesama admin URL barunya: https://situsanda.com/#/<slug-ini>/login
+ */
+window.ADMIN_PATH = "akses-7f2x9";

@@ -1,7 +1,9 @@
 /**
  * ROUTER — SPA hash router. Halaman dibuat sekali lalu disembunyikan/ditampilkan (DOM tidak dibuang).
- * Rute: #/, #/jasa, #/destinasi/:slug, #/admin/login, #/admin/:page
+ * Rute: #/, #/jasa, #/destinasi/:slug, #/<ADMIN_PATH>/login, #/<ADMIN_PATH>/:page
+ * ADMIN_PATH (lihat js/config.js) sengaja bukan "admin" agar tidak mudah ditebak bot/scanner.
  */
+const ADMIN_PATH = window.ADMIN_PATH || 'admin';
 const Pages = {};
 function registerPage(name, def) { Pages[name] = Object.assign({ auth: 'public' }, def); }
 
@@ -13,7 +15,8 @@ function go(name, param) {
 function currentRoute() {
   const raw = location.hash.replace(/^#\/?/, '');
   const parts = raw.split('/');
-  return { isAdmin: parts[0] === 'admin', page: parts[0] === 'admin' ? (parts[1] || 'dashboard') : (parts[0] || 'beranda'), param: parts[0] === 'admin' ? parts[2] : parts[1] };
+  const isAdmin = parts[0] === ADMIN_PATH;
+  return { isAdmin, page: isAdmin ? (parts[1] || 'dashboard') : (parts[0] || 'beranda'), param: isAdmin ? parts[2] : parts[1] };
 }
 
 function route() {
@@ -25,11 +28,11 @@ function route() {
   document.getElementById('admin-shell').hidden = !isAdmin;
 
   if (isAdmin && page !== 'login' && !AppState.token) {
-    location.hash = '#/admin/login';
+    location.hash = '#/' + ADMIN_PATH + '/login';
     return;
   }
   if (isAdmin && page === 'login' && AppState.token) {
-    location.hash = '#/admin/dashboard';
+    location.hash = '#/' + ADMIN_PATH + '/dashboard';
     return;
   }
 
@@ -49,6 +52,7 @@ function route() {
   container.querySelectorAll('.page').forEach(p => { p.hidden = p !== el; });
 
   if (isAdmin) setActiveNav(page);
+  if (typeof closeAdminSidebar === 'function') closeAdminSidebar();
   def.show && def.show(el, param && decodeURIComponent(param));
   window.scrollTo({ top: 0, behavior: 'instant' in document.documentElement.style ? 'instant' : 'auto' });
 }
