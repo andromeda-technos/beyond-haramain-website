@@ -6,7 +6,7 @@
 // GANTI dengan URL /exec hasil deploy GAS Anda.
 const GAS_URL =
   window.GAS_URL ||
-  "https://script.google.com/macros/s/AKfycbw4GrGoCfEziuD4UaCP3Z0b-F3lR5wV1JToyJ5Fjs9hZ_nsPyGEV3IUMljDdTfKFpw2-g/exec";
+  "https://script.google.com/macros/s/AKfycbw-ywbfWJJyDe6EjXdvogd6CdcQX0agWuM_z1b3OBlCMFhYlBlJmfdGKuT3tizpu7fg7Q/exec";
 
 const LS_PREFIX = "bh:v1:";
 const READ_ACTIONS =
@@ -159,7 +159,10 @@ function onSessionExpired() {
   Store.del("adminEmail");
   Store.del("adminNama");
   const adminPrefix = "#/" + ADMIN_PATH;
-  if (location.hash.startsWith(adminPrefix) && location.hash !== adminPrefix + "/login") {
+  if (
+    location.hash.startsWith(adminPrefix) &&
+    location.hash !== adminPrefix + "/login"
+  ) {
     showToast("Sesi berakhir, silakan login kembali.", "error");
     location.hash = adminPrefix + "/login";
   }
