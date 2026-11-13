@@ -511,6 +511,18 @@ registerPage('admin:pengaturan', {
     </div>
 
     <div class="card" style="padding:var(--space-lg);margin-bottom:var(--space-lg)">
+      <h3 style="margin-bottom:var(--space-md)">Foto Latar Hero Beranda</h3>
+      <div class="form-grid">
+        <div class="field full">
+          <label>Foto Latar (disarankan foto lanskap, landscape, maks 8MB)</label>
+          <div class="dropzone" id="hero-dz-foto"><span>Klik atau tarik foto ke sini untuk mengunggah</span><input type="file" id="hero-file-foto" accept=".png,.jpg,.jpeg,.webp"></div>
+          <img id="hero-foto-preview" class="row-thumb" style="display:none;margin-top:var(--space-sm);width:100%;max-width:360px;height:140px;object-fit:cover">
+          <input type="hidden" id="set-hero-bg">
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="padding:var(--space-lg);margin-bottom:var(--space-lg)">
       <h3 style="margin-bottom:var(--space-md)">Logo &amp; Favicon</h3>
       <div class="form-grid">
         <div class="field">
@@ -543,6 +555,8 @@ registerPage('admin:pengaturan', {
     el.querySelector('#set-subheadline').value = s.teks_subheadline || '';
     if (s.logo_url) { el.querySelector('#preview-logo').src = s.logo_url; el.querySelector('#preview-logo').style.display = 'block'; }
     if (s.favicon_url) { el.querySelector('#preview-favicon').src = s.favicon_url; el.querySelector('#preview-favicon').style.display = 'block'; }
+    const heroFoto = setupFotoUploadField(el, { dzId: 'hero-dz-foto', fileId: 'hero-file-foto', previewId: 'hero-foto-preview', hiddenId: 'set-hero-bg' });
+    heroFoto.setPreview(s.hero_bg_url || '');
 
     const THEMES = [
       { id: 'haramain-sanctuary', nama: 'Haramain Sanctuary (Default)', colors: ['#FAF7F2', '#C9A14A', '#1A1613', '#5A4632'] },
@@ -572,6 +586,7 @@ registerPage('admin:pengaturan', {
           wa_template_default: el.querySelector('#set-wa-template').value,
           teks_headline: el.querySelector('#set-headline').value,
           teks_subheadline: el.querySelector('#set-subheadline').value,
+          hero_bg_url: el.querySelector('#set-hero-bg').value,
           tema_aktif: temaAktif
         }
       });

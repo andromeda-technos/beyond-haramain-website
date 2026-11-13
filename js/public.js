@@ -119,6 +119,7 @@ function renderBerandaContent(el, data) {
   const s = data.setting || {};
   el.querySelector('#hero-headline').textContent = s.teks_headline || 'BEYOND HARAMAIN';
   el.querySelector('#hero-subheadline').textContent = s.teks_subheadline || '';
+  el.querySelector('#hero-beranda').style.backgroundImage = s.hero_bg_url ? `url('${s.hero_bg_url}')` : '';
   const heroWa = waLink(s.wa_nomor, s.wa_template_default);
   el.querySelector('#hero-wa-btn').href = heroWa;
   el.querySelector('#cta-wa-btn').href = heroWa;
