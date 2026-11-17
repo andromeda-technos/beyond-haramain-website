@@ -108,7 +108,11 @@ registerPage('admin:produk', {
               <option value="Mulai dari">Mulai dari</option><option value="Tetap">Tetap</option><option value="Via WhatsApp">Via WhatsApp</option>
             </select></div>
             <div class="field"><label>Mata Uang</label><select class="input" id="p-mata-uang"><option>IDR</option><option>USD</option><option>SAR</option></select></div>
-            <div class="field full"><label>Harga</label><input class="input" type="number" id="p-harga" min="0"></div>
+            <div class="field"><label>Harga</label><input class="input" type="number" id="p-harga" min="0"></div>
+            <div class="field"><label>Unit Harga</label><select class="input" id="p-unit-harga">
+              <option value="">Tanpa unit</option><option value="hari">Per Hari</option><option value="sesi">Per Sesi</option><option value="malam">Per Malam</option><option value="__custom">Custom…</option>
+            </select></div>
+            <div class="field full" id="p-unit-custom-wrap" style="display:none"><label>Unit Custom</label><input class="input" id="p-unit-custom" placeholder="mis. orang, paket, jam"></div>
             <div class="field full">
               <label>Foto Produk</label>
               <div class="dropzone" id="p-dz-foto"><span>Klik atau tarik foto ke sini untuk mengunggah (PNG/JPG/WebP, maks 8MB)</span><input type="file" id="p-file-foto" accept=".png,.jpg,.jpeg,.webp"></div>
@@ -146,6 +150,11 @@ registerPage('admin:produk', {
         </tr>`).join('') || '<tr><td colspan="7" class="text-muted">Belum ada produk.</td></tr>';
     };
     renderTable('');
+    const unitSel = el.querySelector('#p-unit-harga');
+    const unitWrap = el.querySelector('#p-unit-custom-wrap');
+    const syncUnit = () => { unitWrap.style.display = unitSel.value === '__custom' ? '' : 'none'; };
+    unitSel.addEventListener('change', syncUnit);
+    el.querySelector('#form-produk').addEventListener('reset', () => setTimeout(syncUnit));
     el.querySelector('#produk-search').addEventListener('input', debounce(e => renderTable(e.target.value), 200));
 
     el.querySelector('#btn-tambah-produk').onclick = () => {
@@ -170,6 +179,10 @@ registerPage('admin:produk', {
         el.querySelector('#p-tipe-harga').value = p.tipe_harga;
         el.querySelector('#p-mata-uang').value = p.mata_uang || 'IDR';
         el.querySelector('#p-harga').value = p.harga || '';
+        const u = String(p.unit_harga || '');
+        if (['', 'hari', 'sesi', 'malam'].includes(u)) { unitSel.value = u; el.querySelector('#p-unit-custom').value = ''; }
+        else { unitSel.value = '__custom'; el.querySelector('#p-unit-custom').value = u; }
+        syncUnit();
         pFoto.setPreview(p.foto_url || '');
         el.querySelector('#p-status').checked = (p.status_tampil === true || p.status_tampil === 'TRUE');
         el.querySelector('#modal-produk-title').textContent = 'Edit Produk';
@@ -196,6 +209,7 @@ registerPage('admin:produk', {
         tipe_harga: el.querySelector('#p-tipe-harga').value,
         mata_uang: el.querySelector('#p-mata-uang').value,
         harga: el.querySelector('#p-harga').value,
+        unit_harga: unitSel.value === '__custom' ? el.querySelector('#p-unit-custom').value.trim() : unitSel.value,
         foto_url: el.querySelector('#p-foto').value,
         status_tampil: el.querySelector('#p-status').checked
       };
@@ -503,6 +517,21 @@ registerPage('admin:pengaturan', {
     </div>
 
     <div class="card" style="padding:var(--space-lg);margin-bottom:var(--space-lg)">
+      <h3 style="margin-bottom:var(--space-xs)">Komunitas WhatsApp (Grup &amp; Saluran)</h3>
+      <p class="text-muted" style="margin-bottom:var(--space-md)">Tombol ini tampil di beranda dan footer. Tempel link undangan, atur teks tombol, lalu aktifkan. Klik "Uji" untuk memastikan link benar.</p>
+      <div class="form-grid">
+        <div class="field full"><label>Link Grup WhatsApp</label>
+          <div style="display:flex;gap:var(--space-sm)"><input class="input" id="set-wa-grup" placeholder="https://chat.whatsapp.com/..." style="flex:1"><button type="button" class="btn btn-secondary" data-test="set-wa-grup">Uji</button></div></div>
+        <div class="field"><label>Teks Tombol Grup</label><input class="input" id="set-wa-grup-label" placeholder="Gabung Grup WhatsApp"></div>
+        <div class="field"><label><input type="checkbox" id="set-wa-grup-aktif" checked> Tampilkan tombol grup</label></div>
+        <div class="field full"><label>Link Saluran WhatsApp</label>
+          <div style="display:flex;gap:var(--space-sm)"><input class="input" id="set-wa-saluran" placeholder="https://whatsapp.com/channel/..." style="flex:1"><button type="button" class="btn btn-secondary" data-test="set-wa-saluran">Uji</button></div></div>
+        <div class="field"><label>Teks Tombol Saluran</label><input class="input" id="set-wa-saluran-label" placeholder="Ikuti Saluran WhatsApp"></div>
+        <div class="field"><label><input type="checkbox" id="set-wa-saluran-aktif" checked> Tampilkan tombol saluran</label></div>
+      </div>
+    </div>
+
+    <div class="card" style="padding:var(--space-lg);margin-bottom:var(--space-lg)">
       <h3 style="margin-bottom:var(--space-md)">Teks Halaman Depan</h3>
       <div class="form-grid">
         <div class="field full"><label>Headline Beranda (H1)</label><input class="input" id="set-headline"></div>
@@ -550,6 +579,18 @@ registerPage('admin:pengaturan', {
     const s = data.setting;
     el.querySelector('#set-wa-nomor').value = s.wa_nomor || '';
     el.querySelector('#set-ig').value = s.instagram_url || '';
+    el.querySelector('#set-wa-grup').value = s.wa_grup_url || '';
+    el.querySelector('#set-wa-saluran').value = s.wa_saluran_url || '';
+    el.querySelector('#set-wa-grup-label').value = s.wa_grup_label || '';
+    el.querySelector('#set-wa-saluran-label').value = s.wa_saluran_label || '';
+    const isOff = (v) => String(v).toLowerCase() === 'false';
+    el.querySelector('#set-wa-grup-aktif').checked = !isOff(s.wa_grup_aktif);
+    el.querySelector('#set-wa-saluran-aktif').checked = !isOff(s.wa_saluran_aktif);
+    el.querySelectorAll('[data-test]').forEach(btn => btn.onclick = () => {
+      const url = el.querySelector('#' + btn.dataset.test).value.trim();
+      if (!/^https:\/\//i.test(url)) return showToast('Link harus diawali https://', 'error');
+      window.open(url, '_blank', 'noopener');
+    });
     el.querySelector('#set-wa-template').value = s.wa_template_default || '';
     el.querySelector('#set-headline').value = s.teks_headline || '';
     el.querySelector('#set-subheadline').value = s.teks_subheadline || '';
@@ -578,11 +619,21 @@ registerPage('admin:pengaturan', {
     setupLogoDropzone(el, 'dz-favicon', 'file-favicon', 'preview-favicon', 'favicon');
 
     el.querySelector('#set-save').onclick = async () => {
+      for (const id of ['set-wa-grup', 'set-wa-saluran']) {
+        const v = el.querySelector('#' + id).value.trim();
+        if (v && !/^https:\/\//i.test(v)) return showToast('Link grup/saluran harus diawali https://', 'error');
+      }
       showLoading(true);
       const res = await api('settingSimpan', {
         pairs: {
+          wa_grup_label: el.querySelector('#set-wa-grup-label').value.trim(),
+          wa_saluran_label: el.querySelector('#set-wa-saluran-label').value.trim(),
+          wa_grup_aktif: el.querySelector('#set-wa-grup-aktif').checked,
+          wa_saluran_aktif: el.querySelector('#set-wa-saluran-aktif').checked,
           wa_nomor: el.querySelector('#set-wa-nomor').value,
           instagram_url: el.querySelector('#set-ig').value,
+          wa_grup_url: el.querySelector('#set-wa-grup').value.trim(),
+          wa_saluran_url: el.querySelector('#set-wa-saluran').value.trim(),
           wa_template_default: el.querySelector('#set-wa-template').value,
           teks_headline: el.querySelector('#set-headline').value,
           teks_subheadline: el.querySelector('#set-subheadline').value,

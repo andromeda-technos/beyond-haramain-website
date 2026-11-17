@@ -375,6 +375,8 @@
               <li id="footer-alamat">Menara Kencana, Jakarta Selatan</li>
               <li id="footer-wa">-</li>
               <li id="footer-ig">-</li>
+              <li id="footer-wa-grup" style="display:none"></li>
+              <li id="footer-wa-saluran" style="display:none"></li>
             </ul>
           </div>
           <div>
@@ -469,6 +471,14 @@
           document.getElementById('footer-wa').textContent = '+' + s.wa_nomor.replace(/^0/, '62');
         }
         if (s.instagram_url) document.getElementById('footer-ig').innerHTML = `<a href="${s.instagram_url}" target="_blank" rel="noopener">Instagram</a>`;
+        [['footer-wa-grup', s.wa_grup_url, s.wa_grup_aktif, s.wa_grup_label || 'Gabung Grup WhatsApp'], ['footer-wa-saluran', s.wa_saluran_url, s.wa_saluran_aktif, s.wa_saluran_label || 'Ikuti Saluran WhatsApp']].forEach(([id, url, aktif, label]) => {
+          const li = document.getElementById(id);
+          if (/^https:\/\//i.test(url || '') && String(aktif).toLowerCase() !== 'false') {
+            const a = document.createElement('a');
+            a.href = url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = label;
+            li.replaceChildren(a); li.style.display = '';
+          }
+        });
         if (s.logo_url) document.getElementById('navbar-logo').src = s.logo_url;
         clearInterval(iv);
       }

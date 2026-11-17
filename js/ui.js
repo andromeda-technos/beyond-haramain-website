@@ -48,7 +48,8 @@ function formatHarga(row) {
     (row.tipe_harga === "Mulai dari" ? "Mulai dari " : "") +
     row.mata_uang +
     " " +
-    nilai
+    nilai +
+    (row.unit_harga ? " / " + row.unit_harga : "")
   );
 }
 

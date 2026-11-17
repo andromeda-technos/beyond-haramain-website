@@ -102,7 +102,11 @@ registerPage('public:beranda', {
     <section class="cta-band">
       <div class="container">
         <h2>Konsultasikan Rencana Perjalanan Ibadah Anda Bersama Kami</h2>
-        <a href="#" id="cta-wa-btn" target="_blank" rel="noopener" class="btn btn-accent">Hubungi Admin via WhatsApp</a>
+        <div class="hero-actions" style="justify-content:center;flex-wrap:wrap">
+          <a href="#" id="cta-wa-btn" target="_blank" rel="noopener" class="btn btn-accent">Hubungi Admin via WhatsApp</a>
+          <a href="#" id="cta-wa-grup-btn" target="_blank" rel="noopener" class="btn btn-secondary" style="display:none">👥 Gabung Grup WhatsApp</a>
+          <a href="#" id="cta-wa-saluran-btn" target="_blank" rel="noopener" class="btn btn-secondary" style="display:none">📢 Ikuti Saluran WhatsApp</a>
+        </div>
         <div class="trust-row">
           <span>✓ Respons Cepat &lt; 5 Menit</span><span>✓ Konsultasi Tanpa Biaya Komitmen</span><span>✓ Legalitas Resmi PPIU</span>
         </div>
@@ -123,6 +127,14 @@ function renderBerandaContent(el, data) {
   const heroWa = waLink(s.wa_nomor, s.wa_template_default);
   el.querySelector('#hero-wa-btn').href = heroWa;
   el.querySelector('#cta-wa-btn').href = heroWa;
+  [['#cta-wa-grup-btn', s.wa_grup_url, s.wa_grup_aktif, s.wa_grup_label, '👥 '],
+   ['#cta-wa-saluran-btn', s.wa_saluran_url, s.wa_saluran_aktif, s.wa_saluran_label, '📢 ']].forEach(([sel, url, aktif, label, icon]) => {
+    const a = el.querySelector(sel);
+    if (/^https:\/\//i.test(url || '') && String(aktif).toLowerCase() !== 'false') {
+      a.href = url; a.style.display = '';
+      if (label) a.textContent = icon + label;
+    } else a.style.display = 'none';
+  });
 
   el.querySelector('#stat-strip-grid').innerHTML = (data.statistik || []).map(st => `
     <div class="stat-item"><div class="num">${esc(st.angka)}${esc(st.satuan || '')}</div><div class="label">${esc(st.label)}</div></div>
