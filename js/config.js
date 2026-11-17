@@ -9,7 +9,7 @@
  * https://script.google.com/macros/s/AKfycbxXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/exec
  */
 window.GAS_URL =
-  "https://script.google.com/macros/s/AKfycbw-ywbfWJJyDe6EjXdvogd6CdcQX0agWuM_z1b3OBlCMFhYlBlJmfdGKuT3tizpu7fg7Q/exec";
+  "https://script.google.com/macros/s/AKfycbwBMubWlRSsjEP8i2ZoGNO6V0T9QrCcaR7M5pl8gmipMwNV3CUvZ8KP-qTqLgHaVbqomw/exec";
 
 /**
  * PATH ADMIN — ganti "admin" (mudah ditebak bot/scanner) jadi slug rahasia.

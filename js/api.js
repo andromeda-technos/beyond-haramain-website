@@ -6,7 +6,7 @@
 // GANTI dengan URL /exec hasil deploy GAS Anda.
 const GAS_URL =
   window.GAS_URL ||
-  "https://script.google.com/macros/s/AKfycbw-ywbfWJJyDe6EjXdvogd6CdcQX0agWuM_z1b3OBlCMFhYlBlJmfdGKuT3tizpu7fg7Q/exec";
+  "https://script.google.com/macros/s/AKfycbwBMubWlRSsjEP8i2ZoGNO6V0T9QrCcaR7M5pl8gmipMwNV3CUvZ8KP-qTqLgHaVbqomw/exec";
 
 const LS_PREFIX = "bh:v1:";
 const READ_ACTIONS =
