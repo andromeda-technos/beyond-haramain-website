@@ -10,7 +10,7 @@ const GAS_URL =
 
 const LS_PREFIX = "bh:v1:";
 const READ_ACTIONS =
-  /^(publicBootstrap|destinasiDetail|produkList|adminBootstrap|batch|fotoList)$/;
+  /^(publicBootstrap|destinasiDetail|produkList|adminBootstrap|batch|fotoList|invoiceList)$/;
 
 const AppState = {
   token: localStorage.getItem(LS_PREFIX + "token") || "",
@@ -132,7 +132,8 @@ async function api(action, data, opt) {
       (crypto.randomUUID
         ? crypto.randomUUID()
         : Date.now() + "-" + Math.random());
-  const tries = isRead ? 3 : 2;
+  // opt.tries / opt.timeout: dipakai aksi berat (generate PDF) agar tidak diulang otomatis & tidak kena timeout 90 dtk
+  const tries = opt.tries || (isRead ? 3 : 2);
   let res;
   for (let i = 0; i < tries; i++) {
     if (i) {
@@ -142,7 +143,7 @@ async function api(action, data, opt) {
     res = await apiOnce(
       action,
       data,
-      isRead ? (i ? 40000 : 25000) : 90000,
+      opt.timeout || (isRead ? (i ? 40000 : 25000) : 90000),
       reqId,
     );
     if (res.success || !res.retryable) break;

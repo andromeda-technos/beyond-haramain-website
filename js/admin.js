@@ -883,3 +883,462 @@ registerPage('admin:testimoni', {
     };
   }
 });
+
+
+// ---------------------------------------------------------------- INVOICE
+// Spesifikasi: Fitur-Invoice-Beyond-Haramain.md. Angka final selalu dihitung ulang di server;
+// perhitungan di sini hanya untuk preview real-time.
+const INV_BULK_MAX = 25;
+const INV_STATUS = ['Belum Lunas', 'Lunas Sebagian', 'Lunas'];
+const rpFmt = (n) => 'Rp ' + Math.round(Number(n) || 0).toLocaleString('id-ID');
+
+function isoToday() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function isoAddDays(iso, days) {
+  const [y, m, d] = String(iso).split('-').map(Number);
+  const t = new Date(y, (m || 1) - 1, (d || 1) + days);
+  return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
+}
+
+/** Picu unduhan file dari base64 hasil API (PDF/ZIP tidak disimpan di Sheets). */
+function downloadBase64File(base64, filename, mime) {
+  const bin = atob(base64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+/** Catatan otomatis dari kombinasi unik mata uang/kurs (identik dengan buildCatatanOtomatis_ di backend). */
+function buildCatatanOtomatisClient(items) {
+  const seen = {}, lines = [];
+  items.forEach(it => {
+    if (!it.mata_uang_asli || it.mata_uang_asli === 'IDR' || !(it.kurs > 0)) return;
+    const k = it.mata_uang_asli + '|' + it.kurs;
+    if (seen[k]) return;
+    seen[k] = true;
+    lines.push('1 ' + it.mata_uang_asli + ' = ' + rpFmt(it.kurs));
+  });
+  return lines.length ? 'Kurs yang digunakan:\n' + lines.join('\n') : '';
+}
+
+function kursObjToLines(raw) {
+  try { return Object.entries(JSON.parse(raw || '{}')).map(([k, v]) => k + '=' + v).join('\n'); } catch (e) { return ''; }
+}
+function kursLinesToJson(text) {
+  const o = {};
+  String(text || '').split('\n').forEach(line => {
+    const m = /^\s*([A-Za-z]{2,6})\s*[=:]\s*([\d.]+)\s*$/.exec(line);
+    if (m && Number(m[2]) > 0) o[m[1].toUpperCase()] = Number(m[2]);
+  });
+  return JSON.stringify(o);
+}
+
+registerPage('admin:invoice', {
+  template: () => `
+    <h1>Invoice</h1>
+    <p class="desc">Buat invoice manual, hitung otomatis ke Rupiah dari mata uang asing, lalu unduh sebagai PDF (satuan atau massal dalam ZIP).</p>
+    <div class="toolbar">
+      <input class="input search" id="inv-search" placeholder="Cari nomor / pelanggan...">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-secondary" id="btn-inv-setting">⚙ Pengaturan Invoice</button>
+        <button class="btn btn-secondary" id="btn-inv-bulk" disabled>Generate Terpilih (Bulk)</button>
+        <button class="btn btn-accent" id="btn-inv-baru">+ Invoice Baru</button>
+      </div>
+    </div>
+    <div class="filter-bar" style="align-items:center">
+      <select class="input" id="inv-f-status" style="width:auto;min-height:40px"><option value="">Semua status</option>${INV_STATUS.map(s => `<option>${s}</option>`).join('')}</select>
+      <label class="text-muted" style="font-size:13px">Dari <input class="input" type="date" id="inv-f-dari" style="width:auto;min-height:40px;display:inline-block"></label>
+      <label class="text-muted" style="font-size:13px">Sampai <input class="input" type="date" id="inv-f-sampai" style="width:auto;min-height:40px;display:inline-block"></label>
+    </div>
+    <div class="table-wrap"><table class="data-table">
+      <thead><tr><th style="width:36px"><input type="checkbox" id="inv-check-all" aria-label="Pilih semua"></th><th>Nomor</th><th>Tanggal</th><th>Pelanggan</th><th>Total</th><th>Sisa</th><th>Status</th><th>Aksi</th></tr></thead>
+      <tbody id="inv-tbody"></tbody>
+    </table></div>
+
+    <!-- Form invoice -->
+    <div class="modal-overlay" id="modal-invoice">
+      <form class="modal" id="form-invoice" style="width:min(1040px,100%)">
+        <div class="modal-head"><h3 id="modal-invoice-title">Invoice Baru</h3><button type="button" class="icon-btn" onclick="closeModal('modal-invoice')">✕</button></div>
+        <div class="modal-body">
+          <input type="hidden" id="i-id">
+          <div class="form-grid">
+            <div class="field"><label>Nama Pelanggan *</label><input class="input" id="i-nama" required></div>
+            <div class="field"><label>Kontak (telp/email)</label><input class="input" id="i-kontak"></div>
+            <div class="field full"><label>Alamat</label><textarea class="input" id="i-alamat" style="min-height:64px"></textarea></div>
+            <div class="field"><label>Tanggal</label><input class="input" type="date" id="i-tanggal"></div>
+            <div class="field"><label>Jatuh Tempo</label><input class="input" type="date" id="i-jatuh"></div>
+          </div>
+
+          <h4 style="margin:8px 0">Item</h4>
+          <div class="table-wrap" style="margin-bottom:8px"><table class="data-table" style="min-width:900px">
+            <thead><tr><th>Produk / Deskripsi</th><th>Qty</th><th>Mata Uang</th><th>Harga Asli</th><th>Kurs → IDR</th><th style="text-align:right">Harga IDR</th><th style="text-align:right">Jumlah</th><th></th></tr></thead>
+            <tbody id="i-items"></tbody>
+          </table></div>
+          <datalist id="inv-mu-list"></datalist>
+          <button type="button" class="btn btn-secondary" id="i-add-item">+ Tambah Baris</button>
+
+          <div class="form-grid" style="margin-top:20px">
+            <div>
+              <div class="field"><label>Catatan otomatis (dari kurs yang dipakai)</label><pre id="i-catatan-auto" class="text-muted" style="white-space:pre-wrap;font:inherit;margin:0;padding:8px 0">-</pre></div>
+              <div class="field"><label>Catatan tambahan</label><textarea class="input" id="i-catatan"></textarea><span class="help">Kosong = memakai catatan footer default dari Pengaturan Invoice.</span></div>
+            </div>
+            <div>
+              <div class="card" style="padding:16px">
+                <div style="display:flex;justify-content:space-between"><span>Subtotal</span><strong id="i-subtotal">Rp 0</strong></div>
+                <div style="display:flex;justify-content:space-between;margin-top:6px"><span>Total</span><strong id="i-total">Rp 0</strong></div>
+                <div class="field" style="margin:12px 0 0"><label>Jumlah dibayar (IDR)</label><input class="input" type="number" min="0" step="any" id="i-dibayar" value="0"></div>
+                <div style="display:flex;justify-content:space-between;margin-top:10px"><span>Sisa tagihan</span><strong id="i-sisa">Rp 0</strong></div>
+                <div class="field" style="margin:12px 0 0"><label>Status bayar</label><select class="input" id="i-status"><option value="">Otomatis (dari sisa tagihan)</option>${INV_STATUS.map(s => `<option>${s}</option>`).join('')}</select></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button type="button" class="btn btn-ghost" id="i-duplikat" style="margin-right:auto" hidden>Duplikat sebagai Invoice Baru</button>
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-invoice')">Batal</button>
+          <button type="submit" class="btn btn-primary">Simpan Invoice</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Pengaturan invoice -->
+    <div class="modal-overlay" id="modal-inv-setting">
+      <form class="modal" id="form-inv-setting">
+        <div class="modal-head"><h3>Pengaturan Invoice</h3><button type="button" class="icon-btn" onclick="closeModal('modal-inv-setting')">✕</button></div>
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="field full"><label>Nama Perusahaan Penagih</label><input class="input" id="s-nama"><span class="help">Bisa berbeda dari brand "Beyond Haramain" bila badan usaha penagih berbeda.</span></div>
+            <div class="field full"><label>Alamat</label><textarea class="input" id="s-alamat" style="min-height:64px"></textarea></div>
+            <div class="field"><label>Telepon</label><input class="input" id="s-telp"></div>
+            <div class="field"><label>Email</label><input class="input" id="s-email" type="email"></div>
+            <div class="field full">
+              <label>Logo Invoice (PNG/JPG/SVG)</label>
+              <input type="file" id="s-logo-file" accept=".png,.jpg,.jpeg,.svg">
+              <img id="s-logo-preview" class="preview-thumb" style="display:none;margin-left:0">
+              <input type="hidden" id="s-logo">
+            </div>
+            <div class="field"><label>Prefix Nomor</label><input class="input" id="s-prefix" placeholder="INV/"></div>
+            <div class="field"><label>Nomor Berikutnya</label><input class="input" type="number" min="1" id="s-counter"><span class="help">Otomatis bertambah. Ubah hanya bila ingin melompat ke nomor tertentu.</span></div>
+            <div class="field"><label>Jatuh Tempo Default (hari)</label><input class="input" type="number" min="0" id="s-hari"></div>
+            <div class="field full"><label>Kurs Default ke IDR (satu per baris, mis. SAR=4740)</label><textarea class="input" id="s-kurs" style="min-height:72px"></textarea></div>
+            <div class="field full"><label>Info Rekening Pembayaran</label><textarea class="input" id="s-rekening" style="min-height:72px" placeholder="Bank, no. rekening, a.n."></textarea></div>
+            <div class="field full"><label>Catatan Footer Default</label><textarea class="input" id="s-footer" style="min-height:64px"></textarea></div>
+          </div>
+        </div>
+        <div class="modal-foot"><button type="button" class="btn btn-secondary" onclick="closeModal('modal-inv-setting')">Batal</button><button type="submit" class="btn btn-primary">Simpan Pengaturan</button></div>
+      </form>
+    </div>`,
+
+  show: async (el) => {
+    const $ = (sel) => el.querySelector(sel);
+
+    // ---- state (di-reset tiap pemanggilan show; wiring event hanya sekali)
+    el._inv = el._inv || { list: [], defaults: { kurs_default: {}, jatuh_tempo_hari: 30 }, selected: new Set(), jatuhManual: false };
+    const S = el._inv;
+
+    const loadList = async () => {
+      $('#inv-tbody').innerHTML = '<tr><td colspan="8"><div class="skeleton" style="height:40px"></div></td></tr>';
+      const res = await api('invoiceList', {});
+      if (!res.success) { $('#inv-tbody').innerHTML = '<tr><td colspan="8" class="text-muted">Gagal memuat invoice.</td></tr>'; return showToast(res.message, 'error'); }
+      S.list = res.data.invoices || [];
+      S.defaults = res.data.defaults || S.defaults;
+      const ids = new Set(S.list.map(i => i.id));
+      S.selected.forEach(id => { if (!ids.has(id)) S.selected.delete(id); });
+      renderTable();
+    };
+
+    const filtered = () => {
+      const q = $('#inv-search').value.trim().toLowerCase();
+      const st = $('#inv-f-status').value, dari = $('#inv-f-dari').value, sampai = $('#inv-f-sampai').value;
+      return S.list.filter(i =>
+        (!q || i.pelanggan_nama.toLowerCase().includes(q) || i.nomor_invoice.toLowerCase().includes(q)) &&
+        (!st || i.status_bayar === st) && (!dari || i.tanggal >= dari) && (!sampai || i.tanggal <= sampai));
+    };
+
+    const statusBadge = (s) => `<span class="badge ${s === 'Lunas' ? 'badge-success' : s === 'Lunas Sebagian' ? 'badge-gold' : ''}">${esc(s)}</span>`;
+
+    const updateBulkBtn = () => {
+      const n = S.selected.size, b = $('#btn-inv-bulk');
+      b.disabled = n === 0;
+      b.textContent = n ? 'Generate Terpilih (' + n + ')' : 'Generate Terpilih (Bulk)';
+    };
+
+    const renderTable = () => {
+      const rows = filtered();
+      $('#inv-tbody').innerHTML = rows.map(i => `
+        <tr>
+          <td><input type="checkbox" data-sel="${i.id}" ${S.selected.has(i.id) ? 'checked' : ''} aria-label="Pilih ${esc(i.nomor_invoice)}"></td>
+          <td><strong>${esc(i.nomor_invoice)}</strong></td>
+          <td>${esc(formatTanggal(i.tanggal))}</td>
+          <td>${esc(i.pelanggan_nama)}</td>
+          <td>${rpFmt(i.total)}</td>
+          <td>${rpFmt(i.sisa_tagihan)}</td>
+          <td>${statusBadge(i.status_bayar)}</td>
+          <td class="row-actions">
+            <button type="button" class="icon-btn" data-pdf="${i.id}" title="Generate PDF">⬇</button>
+            <button type="button" class="icon-btn" data-edit="${i.id}" title="Edit">✎</button>
+            <button type="button" class="icon-btn danger" data-del="${i.id}" title="Hapus">🗑</button>
+          </td>
+        </tr>`).join('') || '<tr><td colspan="8" class="text-muted">Belum ada invoice.</td></tr>';
+      $('#inv-check-all').checked = rows.length > 0 && rows.every(i => S.selected.has(i.id));
+      updateBulkBtn();
+    };
+
+    // ---- form invoice
+    const currencyOptions = () => {
+      const set = new Set(['IDR', 'SAR', 'USD']);
+      Object.keys(S.defaults.kurs_default || {}).forEach(k => set.add(k));
+      $('#inv-mu-list').innerHTML = [...set].map(k => `<option value="${esc(k)}">`).join('');
+    };
+
+    const itemRowHtml = (it) => `
+      <tr class="inv-row">
+        <td style="padding:6px"><input class="input ir-produk" required placeholder="Produk / jasa" value="${esc(it.produk || '')}" style="min-height:40px;padding:0 10px;min-width:200px"><input class="input ir-desk" placeholder="Deskripsi (opsional)" value="${esc(it.deskripsi || '')}" style="min-height:40px;padding:0 10px;margin-top:4px"></td>
+        <td style="padding:6px"><input class="input ir-qty" type="number" min="0" step="any" value="${esc(it.kuantitas ?? 1)}" style="min-height:40px;padding:0 8px;width:72px"></td>
+        <td style="padding:6px"><input class="input ir-mu" list="inv-mu-list" maxlength="6" value="${esc(it.mata_uang_asli || 'IDR')}" style="min-height:40px;padding:0 8px;width:84px;text-transform:uppercase"></td>
+        <td style="padding:6px"><input class="input ir-harga" type="number" min="0" step="any" value="${esc(it.harga_asli ?? '')}" style="min-height:40px;padding:0 8px;width:120px"></td>
+        <td style="padding:6px"><input class="input ir-kurs" type="number" min="0" step="any" value="${esc(it.kurs ?? 1)}" style="min-height:40px;padding:0 8px;width:100px"></td>
+        <td class="ir-satuan" style="padding:6px;text-align:right;white-space:nowrap"></td>
+        <td class="ir-jumlah" style="padding:6px;text-align:right;white-space:nowrap"></td>
+        <td style="padding:6px"><button type="button" class="icon-btn danger ir-del" title="Hapus baris">✕</button></td>
+      </tr>`;
+
+    const readItems = () => [...el.querySelectorAll('#i-items .inv-row')].map(tr => {
+      const mu = (tr.querySelector('.ir-mu').value.trim().toUpperCase()) || 'IDR';
+      return {
+        produk: tr.querySelector('.ir-produk').value.trim(),
+        deskripsi: tr.querySelector('.ir-desk').value.trim(),
+        kuantitas: Number(tr.querySelector('.ir-qty').value),
+        mata_uang_asli: mu,
+        harga_asli: Number(tr.querySelector('.ir-harga').value),
+        kurs: mu === 'IDR' ? 1 : Number(tr.querySelector('.ir-kurs').value)
+      };
+    });
+
+    const recalc = () => {
+      let subtotal = 0;
+      const items = readItems();
+      el.querySelectorAll('#i-items .inv-row').forEach((tr, idx) => {
+        const it = items[idx];
+        const idr = tr.querySelector('.ir-mu').value.trim().toUpperCase() === 'IDR' || !tr.querySelector('.ir-mu').value.trim();
+        const kursEl = tr.querySelector('.ir-kurs');
+        kursEl.disabled = idr;
+        if (idr) kursEl.value = 1;
+        const satuan = Math.round((it.harga_asli || 0) * (it.kurs || 0));
+        const jumlah = Math.round(satuan * (it.kuantitas || 0));
+        subtotal += jumlah;
+        tr.querySelector('.ir-satuan').textContent = rpFmt(satuan);
+        tr.querySelector('.ir-jumlah').textContent = rpFmt(jumlah);
+      });
+      const dibayar = Number($('#i-dibayar').value) || 0;
+      $('#i-subtotal').textContent = rpFmt(subtotal);
+      $('#i-total').textContent = rpFmt(subtotal);
+      $('#i-sisa').textContent = rpFmt(Math.max(0, subtotal - dibayar));
+      $('#i-catatan-auto').textContent = buildCatatanOtomatisClient(items) || '-';
+    };
+
+    const addItemRow = (it) => { $('#i-items').insertAdjacentHTML('beforeend', itemRowHtml(it || {})); recalc(); };
+
+    const openForm = (inv, prefill) => {
+      currencyOptions();
+      $('#form-invoice').reset();
+      $('#i-id').value = inv ? inv.id : '';
+      const src = inv || prefill || {};
+      $('#i-nama').value = src.pelanggan_nama || '';
+      $('#i-alamat').value = src.pelanggan_alamat || '';
+      $('#i-kontak').value = src.pelanggan_kontak || '';
+      const tgl = inv ? inv.tanggal : isoToday();
+      $('#i-tanggal').value = tgl;
+      $('#i-jatuh').value = inv ? inv.tanggal_jatuh_tempo : isoAddDays(tgl, S.defaults.jatuh_tempo_hari);
+      S.jatuhManual = !!inv;
+      $('#i-catatan').value = inv ? inv.catatan_tambahan : '';
+      $('#i-dibayar').value = inv ? inv.jumlah_dibayar : 0;
+      $('#i-status').value = '';
+      $('#i-items').innerHTML = '';
+      (inv && inv.items.length ? inv.items : [{ kuantitas: 1, mata_uang_asli: 'IDR', kurs: 1 }]).forEach(it => addItemRow(it));
+      $('#modal-invoice-title').textContent = inv ? 'Edit ' + inv.nomor_invoice : (prefill ? 'Invoice Baru (duplikat pelanggan)' : 'Invoice Baru');
+      $('#i-duplikat').hidden = !inv;
+      recalc();
+      openModal('modal-invoice');
+    };
+
+    if (!el.dataset.wired) {
+      el.dataset.wired = '1';
+
+      $('#inv-search').addEventListener('input', debounce(renderTable, 200));
+      ['#inv-f-status', '#inv-f-dari', '#inv-f-sampai'].forEach(s => $(s).addEventListener('change', renderTable));
+
+      $('#inv-check-all').addEventListener('change', (e) => {
+        filtered().forEach(i => e.target.checked ? S.selected.add(i.id) : S.selected.delete(i.id));
+        renderTable();
+      });
+
+      $('#inv-tbody').addEventListener('click', async (e) => {
+        const sel = e.target.closest('[data-sel]');
+        if (sel) { const id = Number(sel.dataset.sel); sel.checked ? S.selected.add(id) : S.selected.delete(id); return renderTable(); }
+
+        const editId = e.target.closest('[data-edit]')?.dataset.edit;
+        const delId = e.target.closest('[data-del]')?.dataset.del;
+        const pdfId = e.target.closest('[data-pdf]')?.dataset.pdf;
+        if (editId) return openForm(S.list.find(i => String(i.id) === editId));
+        if (delId) {
+          const inv = S.list.find(i => String(i.id) === delId);
+          if (!confirm('Hapus invoice ' + inv.nomor_invoice + '? Tindakan tidak bisa dibatalkan.')) return;
+          showLoading(true);
+          const res = await api('invoiceHapus', { id: Number(delId) });
+          showLoading(false);
+          if (!res.success) return showToast(res.message, 'error');
+          showToast(res.message || 'Invoice dihapus.');
+          return loadList();
+        }
+        if (pdfId) {
+          showLoading(true);
+          const res = await api('invoiceGenerate', { id: Number(pdfId) }, { tries: 1, timeout: 180000 });
+          showLoading(false);
+          if (!res.success) return showToast(res.message, 'error');
+          downloadBase64File(res.data.base64, res.data.filename, 'application/pdf');
+          showToast('PDF diunduh: ' + res.data.filename);
+          loadList();
+        }
+      });
+
+      $('#btn-inv-bulk').onclick = async () => {
+        const ids = [...S.selected];
+        if (ids.length > INV_BULK_MAX) return showToast('Maksimal ' + INV_BULK_MAX + ' invoice per generate, pilih lebih sedikit atau generate bertahap.', 'error');
+        if (!ids.length) return;
+        showLoading(true);
+        const res = await api('invoiceGenerateBulk', { ids }, { tries: 1, timeout: 330000 });
+        showLoading(false);
+        if (!res.success) return showToast(res.message, 'error');
+        downloadBase64File(res.data.base64, res.data.filename, 'application/zip');
+        showToast(res.message || 'ZIP diunduh.');
+        S.selected.clear();
+        loadList();
+      };
+
+      $('#btn-inv-baru').onclick = () => openForm(null);
+
+      // form: baris item & kalkulasi live
+      $('#i-add-item').onclick = () => addItemRow({ kuantitas: 1, mata_uang_asli: 'IDR', kurs: 1 });
+      $('#i-items').addEventListener('click', (e) => {
+        if (!e.target.closest('.ir-del')) return;
+        if (el.querySelectorAll('#i-items .inv-row').length <= 1) return showToast('Minimal 1 item.', 'error');
+        e.target.closest('.inv-row').remove();
+        recalc();
+      });
+      $('#i-items').addEventListener('input', (e) => { if (!e.target.classList.contains('ir-mu')) recalc(); });
+      $('#i-items').addEventListener('change', (e) => {
+        if (!e.target.classList.contains('ir-mu')) return;
+        const tr = e.target.closest('.inv-row');
+        const mu = e.target.value.trim().toUpperCase();
+        e.target.value = mu;
+        const def = (S.defaults.kurs_default || {})[mu];
+        tr.querySelector('.ir-kurs').value = mu === 'IDR' || !mu ? 1 : (def || '');
+        recalc();
+      });
+      $('#i-dibayar').addEventListener('input', recalc);
+      $('#i-tanggal').addEventListener('change', () => { if (!S.jatuhManual) $('#i-jatuh').value = isoAddDays($('#i-tanggal').value || isoToday(), S.defaults.jatuh_tempo_hari); });
+      $('#i-jatuh').addEventListener('change', () => { S.jatuhManual = true; });
+
+      $('#i-duplikat').onclick = () => openForm(null, {
+        pelanggan_nama: $('#i-nama').value, pelanggan_alamat: $('#i-alamat').value, pelanggan_kontak: $('#i-kontak').value
+      });
+
+      $('#form-invoice').onsubmit = async (e) => {
+        e.preventDefault();
+        const items = readItems();
+        for (let i = 0; i < items.length; i++) {
+          if (!(items[i].kuantitas > 0)) return showToast('Item #' + (i + 1) + ': kuantitas harus lebih dari 0.', 'error');
+          if (!(items[i].harga_asli >= 0)) return showToast('Item #' + (i + 1) + ': harga belum diisi.', 'error');
+          if (!(items[i].kurs > 0)) return showToast('Item #' + (i + 1) + ': kurs ' + items[i].mata_uang_asli + ' belum diisi.', 'error');
+        }
+        const payload = {
+          id: $('#i-id').value ? Number($('#i-id').value) : undefined,
+          pelanggan_nama: $('#i-nama').value, pelanggan_alamat: $('#i-alamat').value, pelanggan_kontak: $('#i-kontak').value,
+          tanggal: $('#i-tanggal').value, tanggal_jatuh_tempo: $('#i-jatuh').value,
+          catatan_tambahan: $('#i-catatan').value,
+          jumlah_dibayar: Number($('#i-dibayar').value) || 0,
+          status_override: $('#i-status').value || undefined,
+          items
+        };
+        showLoading(true);
+        const res = await api('invoiceSimpan', payload);
+        showLoading(false);
+        if (!res.success) return showToast(res.message, 'error');
+        showToast(res.message || 'Invoice tersimpan.');
+        closeModal('modal-invoice');
+        loadList();
+      };
+
+      // ---- pengaturan invoice
+      $('#btn-inv-setting').onclick = async () => {
+        const data = await ensureAdminData(true);
+        if (!data) return;
+        const s = data.setting || {};
+        $('#s-nama').value = s.invoice_perusahaan_nama || '';
+        $('#s-alamat').value = s.invoice_perusahaan_alamat || '';
+        $('#s-telp').value = s.invoice_perusahaan_telp || '';
+        $('#s-email').value = s.invoice_perusahaan_email || '';
+        $('#s-prefix').value = s.invoice_nomor_prefix || 'INV/';
+        $('#s-counter').value = s.invoice_nomor_counter || 100;
+        $('#s-counter').dataset.orig = String(s.invoice_nomor_counter || 100);
+        $('#s-hari').value = s.invoice_default_jatuh_tempo_hari || 30;
+        $('#s-kurs').value = kursObjToLines(s.invoice_kurs_default || '{"SAR":4740,"USD":17770}');
+        $('#s-rekening').value = s.invoice_rekening_bank || '';
+        $('#s-footer').value = s.invoice_catatan_footer_default || '';
+        $('#s-logo').value = s.invoice_logo_url || '';
+        $('#s-logo-file').value = '';
+        $('#s-logo-preview').src = s.invoice_logo_url || '';
+        $('#s-logo-preview').style.display = s.invoice_logo_url ? 'block' : 'none';
+        openModal('modal-inv-setting');
+      };
+
+      $('#s-logo-file').addEventListener('change', async (e) => {
+        const file = e.target.files[0]; if (!file) return;
+        if (!/^image\/(png|svg\+xml|jpeg)$/.test(file.type)) return showToast('Logo harus berformat PNG, SVG, atau JPG.', 'error');
+        showLoading(true);
+        try {
+          const dataUrl = await fileToStorableDataUrl(file, { maxDim: 320 });
+          $('#s-logo').value = dataUrl;
+          $('#s-logo-preview').src = dataUrl;
+          $('#s-logo-preview').style.display = 'block';
+        } catch (err) { showToast(err.message || 'Gagal memproses logo.', 'error'); }
+        finally { showLoading(false); }
+      });
+
+      $('#form-inv-setting').onsubmit = async (e) => {
+        e.preventDefault();
+        const pairs = {
+          invoice_perusahaan_nama: $('#s-nama').value.trim(),
+          invoice_perusahaan_alamat: $('#s-alamat').value.trim(),
+          invoice_perusahaan_telp: $('#s-telp').value.trim(),
+          invoice_perusahaan_email: $('#s-email').value.trim(),
+          invoice_logo_url: $('#s-logo').value,
+          invoice_nomor_prefix: $('#s-prefix').value.trim() || 'INV/',
+          invoice_default_jatuh_tempo_hari: Number($('#s-hari').value) || 30,
+          invoice_kurs_default: kursLinesToJson($('#s-kurs').value),
+          invoice_rekening_bank: $('#s-rekening').value.trim(),
+          invoice_catatan_footer_default: $('#s-footer').value.trim()
+        };
+        // Counter hanya dikirim bila admin sengaja mengubahnya (hindari menimpa counter yang sudah bertambah)
+        if ($('#s-counter').value !== $('#s-counter').dataset.orig) pairs.invoice_nomor_counter = Math.max(1, Math.floor(Number($('#s-counter').value) || 100));
+        showLoading(true);
+        const res = await api('settingSimpan', { pairs });
+        showLoading(false);
+        if (!res.success) return showToast(res.message, 'error');
+        showToast('Pengaturan invoice tersimpan.');
+        closeModal('modal-inv-setting');
+        await ensureAdminData(true);
+        loadList();
+      };
+    }
+
+    loadList();
+  }
+});
